@@ -1,12 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <key name="Software">
 	<key name="ConEmu">
-		<key name=".Vanilla" modified="2019-02-11 10:09:19" build="180626">
+		<key name=".Vanilla" modified="2019-02-12 11:45:31" build="180626">
 			<value name="Language" type="string" data="en"/>
 			<value name="StartType" type="hex" data="02"/>
 			<value name="CmdLine" type="string" data=""/>
 			<value name="StartTasksFile" type="string" data=""/>
-			<value name="StartTasksName" type="string" data="{cmd::Cmder}"/>
+			<value name="StartTasksName" type="string" data="{cmd::Cmder as Admin}"/>
 			<value name="StartFarFolders" type="hex" data="00"/>
 			<value name="StartFarEditors" type="hex" data="00"/>
 			<value name="StartCreateDelay" type="ulong" data="100"/>
@@ -135,9 +135,9 @@
 			<value name="Cascaded" type="hex" data="01"/>
 			<value name="IntegralSize" type="hex" data="00"/>
 			<value name="WindowMode" type="dword" data="0000051f"/>
-			<value name="ConWnd X" type="long" data="712"/>
-			<value name="ConWnd Y" type="long" data="318"/>
-			<value name="LastMonitor" type="string" data="0,0,1920,1050"/>
+			<value name="ConWnd X" type="long" data="2408"/>
+			<value name="ConWnd Y" type="long" data="239"/>
+			<value name="LastMonitor" type="string" data="1920,-7,3840,1043"/>
 			<value name="ConWnd Width" type="dword" data="00000078"/>
 			<value name="ConWnd Height" type="dword" data="0000001e"/>
 			<value name="16bit Height" type="ulong" data="0"/>
@@ -582,16 +582,16 @@
 				<value name="DndRKey" type="hex" data="A2"/>
 				<value name="WndDragKey" type="dword" data="00121101"/>
 			</key>
-			<key name="Tasks" modified="2019-02-11 10:09:19" build="180626">
-				<value name="Count" type="long" data="9"/>
-				<key name="Task1" modified="2019-02-11 10:09:19" build="180626">
+			<key name="Tasks" modified="2019-02-12 11:45:31" build="180626">
+				<value name="Count" type="long" data="10"/>
+				<key name="Task1" modified="2019-02-12 11:45:31" build="180626">
 					<value name="Name" type="string" data="{cmd::Cmder as Admin}"/>
-					<value name="Flags" type="dword" data="00000000"/>
+					<value name="Flags" type="dword" data="00000001"/>
 					<value name="Hotkey" type="dword" data="00000000"/>
-					<value name="GuiArgs" type="string" data=' /icon "%CMDER_ROOT%\icons\cmder.ico"'/>
+					<value name="GuiArgs" type="string" data=' /icon "%CMDER_ROOT%\icons\cmder.ico" '/>
 					<value name="Active" type="long" data="0"/>
 					<value name="Count" type="long" data="1"/>
-					<value name="Cmd1" type="string" data='*cmd /k ""%ConEmuDir%\..\init.bat" "'/>
+					<value name="Cmd1" type="string" data='*cmd /k ""%ConEmuDir%\..\init.bat" " -new_console:d:C:\Projects'/>
 				</key>
 				<key name="Task2" modified="2019-02-11 10:09:19" build="180626">
 					<value name="Name" type="string" data="{cmd::Cmder}"/>
@@ -664,6 +664,15 @@
 					<value name="Active" type="long" data="0"/>
 					<value name="Count" type="long" data="1"/>
 					<value name="Cmd1" type="string" data='set "PATH=%ConEmuBaseDirShort%\wsl;%PATH%" &amp; %ConEmuBaseDirShort%\conemu-cyg-64.exe --wsl -cur_console:pm:/mnt'/>
+				</key>
+				<key name="Task10" modified="2019-02-12 11:45:31" build="180626">
+					<value name="Name" type="string" data="{VSCommandLine}"/>
+					<value name="Flags" type="dword" data="00000004"/>
+					<value name="Hotkey" type="dword" data="00000000"/>
+					<value name="GuiArgs" type="string" data=""/>
+					<value name="Active" type="long" data="0"/>
+					<value name="Count" type="long" data="1"/>
+					<value name="Cmd1" type="string" data='*cmd.exe /k ""%ConEmuDir%\..\init.bat" &amp; "C:\Program Files (x86)\Microsoft Visual Studio\2017\Enterprise\Common7\Tools\VsDevCmd.bat"" -new_console:d:"C:\Projects":t:"Developer Command Prompt"'/>
 				</key>
 			</key>
 			<key name="Apps" modified="2019-02-11 10:09:19" build="180626">
