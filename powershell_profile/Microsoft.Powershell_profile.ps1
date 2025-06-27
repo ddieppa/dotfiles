@@ -29,7 +29,7 @@ if ((Get-ExecutionPolicy) -notin @("RemoteSigned", "Unrestricted")) {
 # SECTION 2: CONFIGURATION MANAGEMENT
 # =========================================================================
 # Centralized configuration for profile settings
-$ProfileConfigPath = "$env:USERPROFILE\.powershell-profile-config.json"
+$ProfileConfigPath = Join-Path (Split-Path $PROFILE -Parent) ".powershell-profile-config.json"
 
 # Default settings if no config file is found
 $DefaultConfig = @{
@@ -65,36 +65,39 @@ if (Test-Path $ProfileConfigPath) {
 # SECTION 3: MODULE INITIALIZATION
 # =========================================================================
 # This block handles the loading of all PowerShell modules.
-# Each module is loaded in a separate try/catch to prevent one
-# failing module from stopping the entire profile load.
+# Modules are not imported directly to leverage PowerShell's module autoloading for better performance.
+# The configuration below ensures that the modules are ready to be used when called.
 
+# --- Oh My Posh ---
+# Must be initialized first to correctly render the prompt.
 try {
-    # --- Oh My Posh ---
-    # Must be initialized first to correctly render the prompt.
-    try {
+    # Check if Oh My Posh command is available
+    if (Get-Command oh-my-posh -ErrorAction SilentlyContinue) {
         $themeFilePath = Join-Path $global:Config.OhMyPoshThemesPath $global:Config.OhMyPoshThemeName
         if ($global:Config.OhMyPoshThemesPath -and (Test-Path $themeFilePath)) {
-            $ompOutput = oh-my-posh init pwsh --config $themeFilePath 2>$null
-            if ($ompOutput) {
-                Invoke-Expression $ompOutput
-                Write-Host "✅ Oh My Posh initialized with theme: $($global:Config.OhMyPoshThemeName)" -ForegroundColor Green
-            } else {
-                Write-Warning "⚠️ Oh My Posh initialization returned empty output."
-            }
+            Invoke-Expression (&oh-my-posh init pwsh --config $themeFilePath)
+            Write-Host "✅ Oh My Posh initialized with theme: $($global:Config.OhMyPoshThemeName)" -ForegroundColor Green
         } else {
             Write-Warning "⚠️ Oh My Posh theme file not found: $themeFilePath"
         }
-    } catch {
-        Write-Warning "⚠️ Oh My Posh initialization failed: $_"
+    } else {
+        Write-Warning "⚠️ Oh My Posh command not found. Please install it first."
     }
+} catch {
+    Write-Warning "⚠️ Oh My Posh initialization failed: $_"
+}
 
-    # --- PSReadLine ---
-    # Provides an improved command-line editing experience.
-    try {
+# --- PSReadLine ---
+# Provides an improved command-line editing experience.
+try {
+    if (Get-Module -ListAvailable -Name PSReadLine) {
         Set-PSReadLineOption -EditMode Windows
-        Set-PSReadLineKeyHandler -Key Tab -Function Complete
+        # Enhanced Key Handlers
+        Set-PSReadLineKeyHandler -Key Tab -Function MenuComplete
         Set-PSReadLineKeyHandler -Key UpArrow -Function HistorySearchBackward
         Set-PSReadLineKeyHandler -Key DownArrow -Function HistorySearchForward
+        Set-PSReadLineKeyHandler -Key "Ctrl+r" -Function ReverseHistorySearch
+        Set-PSReadLineKeyHandler -Key "Ctrl+d" -Function ExitLine
 
         if ($global:Config.EnablePredictiveText) {
             Set-PSReadLineOption -PredictionSource History -PredictionViewStyle ListView
@@ -102,54 +105,53 @@ try {
         } else {
             Write-Host "✅ PSReadLine configured (predictive text disabled)" -ForegroundColor Green
         }
-    } catch {
-        if ($_.Exception.Message -like "*predictive text*") {
-            Write-Host "✅ PSReadLine configured (predictive text disabled due to terminal compatibility)" -ForegroundColor Yellow
-        } else {
-            Write-Warning "⚠️ PSReadLine configuration failed: $_"
-        }
+    } else {
+        Write-Warning "⚠️ PSReadLine module not found. Command-line editing experience will be limited."
     }
-
-    # --- Terminal-Icons ---
-    # Adds file and folder icons to terminal commands like 'ls'.
-    try {
-        if (Get-Module -ListAvailable -Name Terminal-Icons) {
-            # Fix for "Value for dictionary entry is not specified" error by clearing cache
-            $iconCachePath = Join-Path $env:LOCALAPPDATA "Microsoft\Windows\PowerShell\Terminal-Icons"
-            if (Test-Path $iconCachePath) {
-                Remove-Item -Path $iconCachePath -Recurse -Force -ErrorAction SilentlyContinue
-            }
-            Import-Module Terminal-Icons -ErrorAction Stop
-            Write-Host "✅ Terminal Icons loaded" -ForegroundColor Green
-        } else {
-            Write-Warning "⚠️ Terminal-Icons module not installed. Run: Install-Module Terminal-Icons"
-        }
-    } catch {
-        Write-Warning "⚠️ Terminal-Icons configuration failed: $_"
-    }
-
-    # --- PowerToys CommandNotFound ---
-    # Suggests WinGet packages if a command is not found.
-    try {
-        Import-Module Microsoft.WinGet.CommandNotFound -ErrorAction SilentlyContinue
-        Write-Host "✅ PowerToys CommandNotFound module loaded" -ForegroundColor Green
-    } catch {
-        Write-Warning "⚠️ PowerToys CommandNotFound module failed to load: $_"
-    }
-
 } catch {
-    # General catch block for any unexpected errors during module loading
-    $errorMessage = "⚠️ A critical error occurred during module initialization: $_"
-    Write-Warning $errorMessage
-    # Log error to file for debugging
-    try {
-        $logPath = "$env:USERPROFILE\PowerShellProfileErrors.log"
-        $timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
-        "$timestamp - $errorMessage" | Out-File -FilePath $logPath -Append -Encoding UTF8 -ErrorAction SilentlyContinue
-    } catch {
-        # If logging fails, just continue silently
+    if ($_.Exception.Message -like "*predictive text*") {
+        Write-Host "✅ PSReadLine configured (predictive text disabled due to terminal compatibility)" -ForegroundColor Yellow
+    } else {
+        Write-Warning "⚠️ PSReadLine configuration failed: $_"
     }
 }
+
+# --- Terminal-Icons ---
+# Adds file and folder icons to terminal commands like 'ls'.
+try {
+    if (Get-Module -ListAvailable -Name Terminal-Icons) {
+        # The module will be auto-loaded on first use of a command like 'ls'
+        Write-Host "✅ Terminal Icons is available and will auto-load" -ForegroundColor Green
+    } else {
+        Write-Warning "⚠️ Terminal-Icons module not installed. Run 'Install-ProfileModules' to install it."
+    }
+} catch {
+    Write-Warning "⚠️ Terminal-Icons configuration failed: $_"
+}
+
+# --- PowerToys CommandNotFound ---
+# Suggests WinGet packages if a command is not found.
+try {
+    if (Get-Module -ListAvailable -Name Microsoft.WinGet.CommandNotFound) {
+        # This module also auto-loads when a command is not found.
+        Write-Host "✅ PowerToys CommandNotFound module is available and will auto-load" -ForegroundColor Green
+    }
+} catch {
+    Write-Warning "⚠️ PowerToys CommandNotFound module check failed: $_"
+}
+
+# General catch block for any unexpected errors during module loading
+$errorMessage = "⚠️ A critical error occurred during module initialization: $_"
+Write-Warning $errorMessage
+# Log error to file for debugging
+try {
+    $logPath = Join-Path (Split-Path $PROFILE -Parent) "PowerShellProfileErrors.log"
+    $timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
+    "$timestamp - $errorMessage" | Out-File -FilePath $logPath -Append -Encoding UTF8 -ErrorAction SilentlyContinue
+} catch {
+    # If logging fails, just continue silently
+}
+
 
 # =========================================================================
 # SECTION 4: CUSTOM ALIASES & FUNCTIONS
@@ -198,6 +200,31 @@ function Import-Profile {
     Write-Host "✅ Profile reloaded" -ForegroundColor Green
 }
 
+function Install-ProfileModules {
+    $modules = @(
+        "OhMyPosh",
+        "PSReadLine",
+        "Terminal-Icons",
+        "Microsoft.WinGet.CommandNotFound",
+        "Microsoft.PowerShell.SecretManagement"
+    )
+
+    foreach ($module in $modules) {
+        if (Get-Module -ListAvailable -Name $module) {
+            Write-Host "✅ $module is already installed." -ForegroundColor Green
+        } else {
+            Write-Host "Installing $module..." -ForegroundColor Yellow
+            try {
+                Install-Module $module -Repository PSGallery -Force -Scope CurrentUser
+                Write-Host "✅ Successfully installed $module." -ForegroundColor Green
+            } catch {
+                Write-Warning "⚠️ Failed to install $module: $_"
+            }
+        }
+    }
+    Write-Host "💡 Run 'Import-Profile' to apply changes" -ForegroundColor Yellow
+}
+
 # --- .NET Development Functions ---
 function New-DotNetProject {
     param(
@@ -243,6 +270,17 @@ function Open-ProjectInVSCode {
     param([string]$Path = ".")
     code-insiders $Path
 }
+
+# --- Secret Management Placeholder ---
+# It's a best practice to avoid hardcoding secrets. Use the SecretManagement module.
+# Example:
+# if (Get-Module -ListAvailable -Name Microsoft.PowerShell.SecretManagement) {
+#     # Register a vault if none is registered
+#     if (-not (Get-SecretVault)) {
+#         Register-SecretVault -Name LocalStore -ModuleName Microsoft.PowerShell.SecretStore -DefaultVault
+#     }
+#     # $apiKey = Get-Secret -Name "MyApiKey"
+# }
 
 # --- Diagnostic and Informational Functions ---
 function Show-Aliases {
@@ -299,6 +337,7 @@ function Test-ProfileEnvironment {
     Write-Host "Execution Policy: $(Get-ExecutionPolicy)" -ForegroundColor Green
     Write-Host "Profile Path: $PROFILE" -ForegroundColor Green
     Write-Host "Profile Exists: $(Test-Path $PROFILE)" -ForegroundColor Green
+    Write-Host "Profile Directory: $(Split-Path $PROFILE -Parent)" -ForegroundColor Green
     
     Write-Host "`n=== Configuration Variables ===" -ForegroundColor Cyan
     Write-Host "Config File: $ProfileConfigPath" -ForegroundColor Gray
@@ -333,7 +372,7 @@ function Test-ProfileEnvironment {
     }
     
     Write-Host "`n=== Error Log ===" -ForegroundColor Cyan
-    $logPath = "$env:USERPROFILE\PowerShellProfileErrors.log"
+    $logPath = Join-Path (Split-Path $PROFILE -Parent) "PowerShellProfileErrors.log"
     if (Test-Path $logPath) {
         Write-Host "Recent errors from: $logPath" -ForegroundColor Yellow
         Get-Content $logPath -Tail 5 | ForEach-Object { Write-Host "  $_" -ForegroundColor Red }
@@ -411,6 +450,7 @@ Write-Host "🚀 .NET Development Environment Ready!" -ForegroundColor Cyan
 Write-Host "   Type 'Show-Aliases' to see available shortcuts" -ForegroundColor Gray
 Write-Host "   Type 'Show-DotNetInfo' to see .NET installation details" -ForegroundColor Gray
 Write-Host "   Type 'Test-ProfileEnvironment' to diagnose profile issues" -ForegroundColor Gray
+Write-Host "   Type 'Install-ProfileModules' to install required modules" -ForegroundColor Gray
 Write-Host "   Type 'Set-ProfileTheme <theme-name>' to change Oh My Posh theme" -ForegroundColor Gray
 Write-Host "   Type 'Reset-ProfileConfig' to reset configuration to defaults" -ForegroundColor Gray
 Write-Host "   Type 'Import-Profile' to reload this profile" -ForegroundColor Gray
