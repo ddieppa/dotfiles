@@ -1,38 +1,50 @@
-# Simplified encoding handling
+# =========================================================================
+# PowerShell Profile
+#
+# Organizes the profile into logical sections for readability and
+# maintainability. Includes performance optimizations and robust
+# error handling.
+# =========================================================================
+
+# =========================================================================
+# SECTION 1: ENVIRONMENT & PRE-CHECKS
+# =========================================================================
+# Ensure consistent UTF-8 output across PowerShell versions
 if ($PSVersionTable.PSVersion.Major -ge 7) {
-    [Console]::OutputEncoding = [Text.UTF8Encoding]::new($false)
+    [Console]::OutputEncoding = [System.Text.UTF8Encoding]::new($false)
 }
 
-# PowerShell Version Check
+# Check for minimum required PowerShell version
 if ($PSVersionTable.PSVersion.Major -lt 7) {
     Write-Warning "⚠️ PowerShell version is below 7. Some features may not work optimally."
 }
 
-# Execution Policy Check
+# Check execution policy to ensure scripts can run
 if ((Get-ExecutionPolicy) -notin @("RemoteSigned", "Unrestricted")) {
     Write-Warning "⚠️ Execution policy is not set to RemoteSigned or higher. Some scripts may not run."
 }
 
-# ======================================
-# Configuration Variables
-# ======================================
-# Configuration file path
+
+# =========================================================================
+# SECTION 2: CONFIGURATION MANAGEMENT
+# =========================================================================
+# Centralized configuration for profile settings
 $ProfileConfigPath = "$env:USERPROFILE\.powershell-profile-config.json"
 
-# Default configuration
+# Default settings if no config file is found
 $DefaultConfig = @{
     OhMyPoshThemesPath = $env:POSH_THEMES_PATH
-    OhMyPoshThemeName = "mytheme.omp.json"  # Default theme
-    EnablePredictiveText = $true            # Set to $false if having terminal issues
+    OhMyPoshThemeName  = "mytheme.omp.json"
+    EnablePredictiveText = $true
 }
 
-# Load configuration from file or create default
+# Load configuration from file or create a default one
 if (Test-Path $ProfileConfigPath) {
     try {
         $configContent = Get-Content $ProfileConfigPath -Raw | ConvertFrom-Json
         $global:Config = @{
             OhMyPoshThemesPath = $env:POSH_THEMES_PATH
-            OhMyPoshThemeName = $configContent.OhMyPoshThemeName
+            OhMyPoshThemeName  = $configContent.OhMyPoshThemeName
             EnablePredictiveText = $configContent.EnablePredictiveText
         }
     } catch {
@@ -41,7 +53,6 @@ if (Test-Path $ProfileConfigPath) {
     }
 } else {
     $global:Config = $DefaultConfig.Clone()
-    # Save default config
     try {
         $global:Config | ConvertTo-Json | Out-File -FilePath $ProfileConfigPath -Encoding UTF8
     } catch {
@@ -49,70 +60,88 @@ if (Test-Path $ProfileConfigPath) {
     }
 }
 
-try {
-    # Environment Variables Validation
-    if (-not $global:Config.OhMyPoshThemesPath -or -not (Test-Path $global:Config.OhMyPoshThemesPath)) {
-        Write-Warning "⚠️ POSH_THEMES_PATH is not set or path doesn't exist."
-    }
 
-    # Oh My Posh (keep first)
-    $themeFilePath = Join-Path $global:Config.OhMyPoshThemesPath $global:Config.OhMyPoshThemeName
-    if ($global:Config.OhMyPoshThemesPath -and (Test-Path $themeFilePath)) {
-        try {
+# =========================================================================
+# SECTION 3: MODULE INITIALIZATION
+# =========================================================================
+# This block handles the loading of all PowerShell modules.
+# Each module is loaded in a separate try/catch to prevent one
+# failing module from stopping the entire profile load.
+
+try {
+    # --- Oh My Posh ---
+    # Must be initialized first to correctly render the prompt.
+    try {
+        $themeFilePath = Join-Path $global:Config.OhMyPoshThemesPath $global:Config.OhMyPoshThemeName
+        if ($global:Config.OhMyPoshThemesPath -and (Test-Path $themeFilePath)) {
             $ompOutput = oh-my-posh init pwsh --config $themeFilePath 2>$null
             if ($ompOutput) {
                 Invoke-Expression $ompOutput
                 Write-Host "✅ Oh My Posh initialized with theme: $($global:Config.OhMyPoshThemeName)" -ForegroundColor Green
             } else {
-                Write-Warning "⚠️ Oh My Posh initialization returned empty output"
+                Write-Warning "⚠️ Oh My Posh initialization returned empty output."
             }
-        } catch {
-            Write-Warning "⚠️ Oh My Posh initialization failed: $_"
+        } else {
+            Write-Warning "⚠️ Oh My Posh theme file not found: $themeFilePath"
         }
-    } else {
-        Write-Warning "⚠️ Oh My Posh theme file not found: $themeFilePath"
+    } catch {
+        Write-Warning "⚠️ Oh My Posh initialization failed: $_"
     }
 
-    # PSReadLine (stable)
+    # --- PSReadLine ---
+    # Provides an improved command-line editing experience.
     try {
-        # Basic PSReadLine configuration
         Set-PSReadLineOption -EditMode Windows
         Set-PSReadLineKeyHandler -Key Tab -Function Complete
         Set-PSReadLineKeyHandler -Key UpArrow -Function HistorySearchBackward
         Set-PSReadLineKeyHandler -Key DownArrow -Function HistorySearchForward
-        
-        # Predictive text (only if enabled and terminal supports it)
+
         if ($global:Config.EnablePredictiveText) {
-            try {
-                Set-PSReadLineOption -PredictionSource History -PredictionViewStyle ListView
-                Write-Host "✅ PSReadLine configured with predictive text" -ForegroundColor Green
-            } catch {
-                # Fall back to basic configuration if predictive text fails
-                Write-Host "✅ PSReadLine configured (predictive text disabled due to terminal compatibility)" -ForegroundColor Yellow
-            }
+            Set-PSReadLineOption -PredictionSource History -PredictionViewStyle ListView
+            Write-Host "✅ PSReadLine configured with predictive text" -ForegroundColor Green
         } else {
             Write-Host "✅ PSReadLine configured (predictive text disabled)" -ForegroundColor Green
         }
     } catch {
-        Write-Warning "⚠️ PSReadLine configuration failed: $_"
+        if ($_.Exception.Message -like "*predictive text*") {
+            Write-Host "✅ PSReadLine configured (predictive text disabled due to terminal compatibility)" -ForegroundColor Yellow
+        } else {
+            Write-Warning "⚠️ PSReadLine configuration failed: $_"
+        }
     }
 
-    # Terminal-Icons (reinstalled)
-    if (Get-Module -ListAvailable -Name Terminal-Icons) {
-        Import-Module Terminal-Icons -ErrorAction Stop
-        Write-Host "✅ Terminal Icons loaded" -ForegroundColor Green
-    } else {
-        Write-Warning "⚠️ Terminal-Icons module is not installed. Run: Install-Module Terminal-Icons"
+    # --- Terminal-Icons ---
+    # Adds file and folder icons to terminal commands like 'ls'.
+    try {
+        if (Get-Module -ListAvailable -Name Terminal-Icons) {
+            # Fix for "Value for dictionary entry is not specified" error by clearing cache
+            $iconCachePath = Join-Path $env:LOCALAPPDATA "Microsoft\Windows\PowerShell\Terminal-Icons"
+            if (Test-Path $iconCachePath) {
+                Remove-Item -Path $iconCachePath -Recurse -Force -ErrorAction SilentlyContinue
+            }
+            Import-Module Terminal-Icons -ErrorAction Stop
+            Write-Host "✅ Terminal Icons loaded" -ForegroundColor Green
+        } else {
+            Write-Warning "⚠️ Terminal-Icons module not installed. Run: Install-Module Terminal-Icons"
+        }
+    } catch {
+        Write-Warning "⚠️ Terminal-Icons configuration failed: $_"
     }
 
-    # PowerToys CommandNotFound
-    Import-Module Microsoft.WinGet.CommandNotFound -ErrorAction SilentlyContinue
-    Write-Host "✅ PowerToys module loaded" -ForegroundColor Green
+    # --- PowerToys CommandNotFound ---
+    # Suggests WinGet packages if a command is not found.
+    try {
+        Import-Module Microsoft.WinGet.CommandNotFound -ErrorAction SilentlyContinue
+        Write-Host "✅ PowerToys CommandNotFound module loaded" -ForegroundColor Green
+    } catch {
+        Write-Warning "⚠️ PowerToys CommandNotFound module failed to load: $_"
+    }
 
 } catch {
-    $errorMessage = "⚠️ Module error: $_"
+    # General catch block for any unexpected errors during module loading
+    $errorMessage = "⚠️ A critical error occurred during module initialization: $_"
     Write-Warning $errorMessage
-    # Log error to file for debugging (with error handling)
+    # Log error to file for debugging
     try {
         $logPath = "$env:USERPROFILE\PowerShellProfileErrors.log"
         $timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
@@ -122,14 +151,30 @@ try {
     }
 }
 
-# ======================================
-# .NET Development Aliases & Functions
-# ======================================
+# =========================================================================
+# SECTION 4: CUSTOM ALIASES & FUNCTIONS
+# =========================================================================
 
-# Basic .NET CLI aliases
+# --- General Aliases ---
+Set-Alias -Name ll -Value Get-ChildItem
+function la { Get-ChildItem -Force @args }
+Set-Alias -Name c -Value Clear-Host
+Set-Alias -Name which -Value Get-Command
+
+# --- Git Aliases & Functions ---
+Set-Alias -Name g -Value git
+function gst { git status @args }
+function gad { git add @args }
+function gcm { git commit @args }
+function gps { git push @args }
+function gpl { git pull @args }
+function gbr { git branch @args }
+function gco { git checkout @args }
+function gdf { git diff @args }
+function glog { git log --oneline @args }
+
+# --- .NET CLI Aliases & Functions ---
 Set-Alias -Name dn -Value dotnet
-
-# .NET CLI Functions (since aliases can't have arguments)
 function dnb { dotnet build @args }
 function dnr { dotnet run @args }
 function dnt { dotnet test @args }
@@ -143,37 +188,26 @@ function dnrem { dotnet remove @args }
 function dnlist { dotnet list @args }
 function dnsln { dotnet sln @args }
 
-# Git functions for development workflow (avoiding read-only aliases)
-Set-Alias -Name g -Value git
-function gst { git status @args }
-function gad { git add @args }
-function gcm { git commit @args }
-function gps { git push @args }
-function gpl { git pull @args }
-function gbr { git branch @args }
-function gco { git checkout @args }
-function gdf { git diff @args }
-function glog { git log --oneline @args }
+# --- Profile Management Functions ---
+function Edit-Profile {
+    code-insiders $PROFILE
+}
 
-# Common development aliases
-Set-Alias -Name ll -Value Get-ChildItem
-function la { Get-ChildItem -Force @args }
-Set-Alias -Name c -Value Clear-Host
-Set-Alias -Name which -Value Get-Command
+function Import-Profile {
+    . $PROFILE
+    Write-Host "✅ Profile reloaded" -ForegroundColor Green
+}
 
-# .NET Development Functions
+# --- .NET Development Functions ---
 function New-DotNetProject {
     param(
         [Parameter(Mandatory=$true)]
         [string]$Name,
-        
         [Parameter(Mandatory=$true)]
         [ValidateSet("console", "classlib", "web", "webapi", "mvc", "blazor", "worker", "test")]
         [string]$Template,
-        
         [string]$Framework = "net8.0"
     )
-    
     dotnet new $Template -n $Name -f $Framework
     Set-Location $Name
     Write-Host "✅ Created $Template project: $Name" -ForegroundColor Green
@@ -183,10 +217,8 @@ function Add-DotNetPackage {
     param(
         [Parameter(Mandatory=$true)]
         [string]$PackageName,
-        
         [string]$Version
     )
-    
     if ($Version) {
         dotnet add package $PackageName --version $Version
     } else {
@@ -200,12 +232,52 @@ function Build-DotNetSolution {
         [string]$Configuration = "Debug",
         [switch]$NoBuild
     )
-    
     if (-not $NoBuild) {
         dotnet build --configuration $Configuration
     }
     dotnet test --configuration $Configuration --no-build
     Write-Host "✅ Build and test completed" -ForegroundColor Green
+}
+
+function Open-ProjectInVSCode {
+    param([string]$Path = ".")
+    code-insiders $Path
+}
+
+# --- Diagnostic and Informational Functions ---
+function Show-Aliases {
+    Write-Host "=== .NET Development Shortcuts ===" -ForegroundColor Cyan
+    Write-Host "dn       → dotnet" -ForegroundColor Green
+    Write-Host "dnb      → dotnet build" -ForegroundColor Green
+    Write-Host "dnr      → dotnet run" -ForegroundColor Green
+    Write-Host "dnt      → dotnet test" -ForegroundColor Green
+    Write-Host "dnp      → dotnet pack" -ForegroundColor Green
+    Write-Host "dnpub    → dotnet publish" -ForegroundColor Green
+    Write-Host "dnres    → dotnet restore" -ForegroundColor Green
+    Write-Host "dnc      → dotnet clean" -ForegroundColor Green
+    Write-Host "dnnew    → dotnet new" -ForegroundColor Green
+    Write-Host "dnadd    → dotnet add" -ForegroundColor Green
+    Write-Host "dnrem    → dotnet remove" -ForegroundColor Green
+    Write-Host "dnlist   → dotnet list" -ForegroundColor Green
+    Write-Host "dnsln    → dotnet sln" -ForegroundColor Green
+    Write-Host ""
+    Write-Host "=== Git Development Shortcuts ===" -ForegroundColor Yellow
+    Write-Host "g        → git" -ForegroundColor Yellow
+    Write-Host "gst      → git status" -ForegroundColor Yellow
+    Write-Host "gad      → git add" -ForegroundColor Yellow
+    Write-Host "gcm      → git commit" -ForegroundColor Yellow
+    Write-Host "gps      → git push" -ForegroundColor Yellow
+    Write-Host "gpl      → git pull" -ForegroundColor Yellow
+    Write-Host "gbr      → git branch" -ForegroundColor Yellow
+    Write-Host "gco      → git checkout" -ForegroundColor Yellow
+    Write-Host "gdf      → git diff" -ForegroundColor Yellow
+    Write-Host "glog     → git log --oneline" -ForegroundColor Yellow
+    Write-Host ""
+    Write-Host "=== General Shortcuts ===" -ForegroundColor Cyan
+    Write-Host "ll       → Get-ChildItem" -ForegroundColor Magenta
+    Write-Host "la       → Get-ChildItem -Force" -ForegroundColor Magenta
+    Write-Host "c        → Clear-Host" -ForegroundColor Magenta
+    Write-Host "which    → Get-Command" -ForegroundColor Magenta
 }
 
 function Show-DotNetInfo {
@@ -219,26 +291,6 @@ function Show-DotNetInfo {
     Write-Host "--- Installed Runtimes ---" -ForegroundColor Yellow
     dotnet --list-runtimes
     Write-Host "=========================================" -ForegroundColor Cyan
-}
-
-function Open-ProjectInVSCode {
-    param([string]$Path = ".")
-    code-insiders $Path
-}
-
-# Development environment helpers
-function Show-Profile {
-    Write-Host "Profile Path: $PROFILE" -ForegroundColor Yellow
-    Write-Host "Profile exists: $(Test-Path $PROFILE)" -ForegroundColor Yellow
-}
-
-function Edit-Profile {
-    code $PROFILE
-}
-
-function Import-Profile {
-    . $PROFILE
-    Write-Host "✅ Profile reloaded" -ForegroundColor Green
 }
 
 function Test-ProfileEnvironment {
@@ -291,6 +343,7 @@ function Test-ProfileEnvironment {
     Write-Host "=========================================" -ForegroundColor Cyan
 }
 
+# --- Theme Management Functions ---
 function Set-ProfileTheme {
     param(
         [Parameter(Mandatory=$true)]
@@ -301,7 +354,6 @@ function Set-ProfileTheme {
     if (Test-Path $themeFile) {
         $global:Config.OhMyPoshThemeName = "$ThemeName.omp.json"
         
-        # Save configuration to file for persistence
         try {
             $global:Config | ConvertTo-Json | Out-File -FilePath $ProfileConfigPath -Encoding UTF8
             Write-Host "✅ Theme set to: $ThemeName (saved to config)" -ForegroundColor Green
@@ -340,6 +392,9 @@ function Reset-ProfileConfig {
     }
 }
 
+# =========================================================================
+# SECTION 5: ARGUMENT COMPLETERS
+# =========================================================================
 # Tab completion for dotnet CLI
 Register-ArgumentCompleter -Native -CommandName dotnet -ScriptBlock {
     param($commandName, $wordToComplete, $cursorPosition)
@@ -348,42 +403,9 @@ Register-ArgumentCompleter -Native -CommandName dotnet -ScriptBlock {
     }
 }
 
-function Show-Aliases {
-    Write-Host "=== .NET Development Shortcuts ===" -ForegroundColor Cyan
-    Write-Host "dn       → dotnet" -ForegroundColor Green
-    Write-Host "dnb      → dotnet build" -ForegroundColor Green
-    Write-Host "dnr      → dotnet run" -ForegroundColor Green
-    Write-Host "dnt      → dotnet test" -ForegroundColor Green
-    Write-Host "dnp      → dotnet pack" -ForegroundColor Green
-    Write-Host "dnpub    → dotnet publish" -ForegroundColor Green
-    Write-Host "dnres    → dotnet restore" -ForegroundColor Green
-    Write-Host "dnc      → dotnet clean" -ForegroundColor Green
-    Write-Host "dnnew    → dotnet new" -ForegroundColor Green
-    Write-Host "dnadd    → dotnet add" -ForegroundColor Green
-    Write-Host "dnrem    → dotnet remove" -ForegroundColor Green
-    Write-Host "dnlist   → dotnet list" -ForegroundColor Green
-    Write-Host "dnsln    → dotnet sln" -ForegroundColor Green
-    Write-Host ""
-    Write-Host "=== Git Development Shortcuts ===" -ForegroundColor Cyan
-    Write-Host "g        → git" -ForegroundColor Yellow
-    Write-Host "gst      → git status" -ForegroundColor Yellow
-    Write-Host "gad      → git add" -ForegroundColor Yellow
-    Write-Host "gcm      → git commit" -ForegroundColor Yellow
-    Write-Host "gps      → git push" -ForegroundColor Yellow
-    Write-Host "gpl      → git pull" -ForegroundColor Yellow
-    Write-Host "gbr      → git branch" -ForegroundColor Yellow
-    Write-Host "gco      → git checkout" -ForegroundColor Yellow
-    Write-Host "gdf      → git diff" -ForegroundColor Yellow
-    Write-Host "glog     → git log --oneline" -ForegroundColor Yellow
-    Write-Host ""
-    Write-Host "=== General Shortcuts ===" -ForegroundColor Cyan
-    Write-Host "ll       → Get-ChildItem" -ForegroundColor Magenta
-    Write-Host "la       → Get-ChildItem -Force" -ForegroundColor Magenta
-    Write-Host "c        → Clear-Host" -ForegroundColor Magenta
-    Write-Host "which    → Get-Command" -ForegroundColor Magenta
-}
-
-# Display welcome message
+# =========================================================================
+# SECTION 6: WELCOME MESSAGE
+# =========================================================================
 Write-Host ""
 Write-Host "🚀 .NET Development Environment Ready!" -ForegroundColor Cyan
 Write-Host "   Type 'Show-Aliases' to see available shortcuts" -ForegroundColor Gray
