@@ -28,7 +28,7 @@ This PowerShell profile includes comprehensive theme management functions for Oh
 | `theme -List` | List all available themes |
 | `theme -Personal` | Show only personal themes |
 | `theme -BuiltIn` | Show only built-in themes |
-| `theme -ThemeName <name>` | Apply specific theme by name |
+| `theme -Name <name>` | Apply specific theme by name |
 | `theme-current` | Show currently active theme |
 | `theme-help` | Show help information |
 
@@ -49,10 +49,10 @@ theme -BuiltIn
 ### Direct Theme Application
 ```powershell
 # Apply a specific theme by name
-theme -ThemeName "paradox"
+theme -Name "paradox"
 
 # Apply a personal theme (takes priority if exists)
-theme -ThemeName "my-custom-theme"
+theme -Name "my-custom-theme"
 ```
 
 ### Information Commands
@@ -113,7 +113,8 @@ The system can detect currently active themes even when not set through these fu
 
 ### Profile Integration
 The theme management is integrated into the PowerShell profile at:
-- `dotfiles/powershell/aliases/core.ps1` - Main functions
+- `dotfiles/powershell/aliases/theme.ps1` - Theme management functions
+- `dotfiles/powershell/aliases/core.ps1` - Core utilities and alias management
 - `dotfiles/powershell/Profile.ps1` - Auto-loading logic
 
 ## Implementation Details
