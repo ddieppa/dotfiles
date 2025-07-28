@@ -51,20 +51,23 @@ Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser -Force
    git clone https://github.com/ddieppa/dotfiles D:\any\folder\dotfiles
    ```
 
+
 2. **Run the installer**:
-   ```powershell
-   & D:\any\folder\dotfiles\powershell\install.ps1
-   ```
+    ```powershell
+    & D:\any\folder\dotfiles\powershell\install.ps1
+    ```
 
 3. **Restart PowerShell** to see your new environment.
 
 The installer will:
 - Install required modules (PSReadLine, Terminal-Icons, Oh My Posh)[14][11]
-- Create a symbolic link from `$PROFILE.CurrentUserAllHosts` to your repo's `Profile.ps1`[12][13]
+- **Create symbolic links for _both_ `$PROFILE.CurrentUserAllHosts` (`profile.ps1`) _and_ `$PROFILE.CurrentUserCurrentHost` (`Microsoft.PowerShell_profile.ps1`) to your repo's `Profile.ps1`**. This ensures your profile loads correctly in all PowerShell hosts and matches the default `$PROFILE` location.
 - Handle OneDrive Documents redirection automatically[9]
 - Backup any existing profile safely
 
 ## 📝 Core Files
+
+oh-my-posh init pwsh --config $Config | Invoke-Expression
 
 ### Profile.ps1 (Main Orchestrator)
 
@@ -99,31 +102,42 @@ Set-Alias rl reload
 - Uses `$PSScriptRoot` for dynamic path resolution[1][2]
 - Fallback to built-in themes when custom themes are missing[7][8] 
 - Auto-loads all alias files for easy expansion[4]
+- **Works with all PowerShell profile types thanks to dual symlinks**
+
 
 ### install.ps1 (Bootstrap Script)
 
-Handles setup and symbolic link creation:
+Handles setup and symbolic link creation for **both** major profile types:
 
 ```powershell
-# 1. Identify where PowerShell wants the profile
-$DestPath = $PROFILE.CurrentUserAllHosts  # respects OneDrive redirection
+# 1. Define both profile types to link
+$ProfilePaths = @(
+    @{ Name = "CurrentUserAllHosts"; Path = $PROFILE.CurrentUserAllHosts },
+    @{ Name = "CurrentUserCurrentHost"; Path = $PROFILE.CurrentUserCurrentHost }
+)
 
-# 2. Ensure parent folder exists
-$DestDir = Split-Path $DestPath -Parent
-New-Item -ItemType Directory -Path $DestDir -Force | Out-Null
-
-# 3. Backup any old profile
-if (Test-Path $DestPath -PathType Leaf) {
-    Copy-Item $DestPath "$DestPath.bak" -Force
-    Remove-Item $DestPath -Force
-}
-
-# 4. Link to the real profile using dynamic source
 $SourcePath = Join-Path -Path $PSScriptRoot -ChildPath 'Profile.ps1'
-New-Item -ItemType SymbolicLink -Path $DestPath -Target $SourcePath -Force
 
-Write-Host "Profile linked → $DestPath" -ForegroundColor Green
+foreach ($ProfileInfo in $ProfilePaths) {
+    $DestPath = $ProfileInfo.Path
+    $ProfileName = $ProfileInfo.Name
+    # Ensure parent folder exists
+    $DestDir = Split-Path $DestPath -Parent
+    New-Item -ItemType Directory -Path $DestDir -Force | Out-Null
+    # Backup any existing profile
+    if (Test-Path $DestPath -PathType Leaf) {
+        Copy-Item $DestPath "$DestPath.bak" -Force
+        Remove-Item $DestPath -Force
+    }
+    # Create symlink
+    New-Item -ItemType SymbolicLink -Path $DestPath -Target $SourcePath -Force | Out-Null
+    Write-Host "Profile linked → $DestPath" -ForegroundColor Green
+}
 ```
+
+**Why both?**
+
+- PowerShell uses different profile files for different hosts and scenarios. By linking both, your profile loads correctly whether you launch PowerShell from the console, Windows Terminal, VS Code, or other hosts. This also ensures the `reload` alias always works, since `$PROFILE` points to `CurrentUserCurrentHost` by default.
 
 ## 🎯 Alias Management
 

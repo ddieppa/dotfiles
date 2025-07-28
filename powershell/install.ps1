@@ -1,25 +1,45 @@
 <#
   Bootstrap script
-  Creates symlink to live profile
+  Creates symlinks to live profile for both AllHosts and CurrentHost
   Auto-detects profile path, OneDrive redirection, and repo location.
 #>
 
-# 1. Identify where PowerShell wants the profile
-$DestPath = $PROFILE.CurrentUserAllHosts           # respects OneDrive
+# Define both profile types we want to link
+$ProfilePaths = @(
+    @{ Name = "CurrentUserAllHosts"; Path = $PROFILE.CurrentUserAllHosts },
+    @{ Name = "CurrentUserCurrentHost"; Path = $PROFILE.CurrentUserCurrentHost }
+)
 
-# 2. Ensure parent folder exists
-$DestDir = Split-Path $DestPath -Parent
-New-Item -ItemType Directory -Path $DestDir -Force | Out-Null
+$SourcePath = Join-Path -Path $PSScriptRoot -ChildPath 'Profile.ps1'
 
-# 3. Backup any old profile
-if (Test-Path $DestPath -PathType Leaf) {
-    Copy-Item $DestPath "$DestPath.bak" -Force
-    Remove-Item $DestPath -Force
+foreach ($ProfileInfo in $ProfilePaths) {
+    $DestPath = $ProfileInfo.Path
+    $ProfileName = $ProfileInfo.Name
+    
+    Write-Host "Setting up $ProfileName profile..." -ForegroundColor Cyan
+    
+    # 1. Ensure parent folder exists
+    $DestDir = Split-Path $DestPath -Parent
+    New-Item -ItemType Directory -Path $DestDir -Force | Out-Null
+    
+    # 2. Backup any existing profile
+    if (Test-Path $DestPath -PathType Leaf) {
+        $BackupPath = "$DestPath.bak"
+        Write-Host "  Backing up existing profile to $BackupPath" -ForegroundColor Yellow
+        Copy-Item $DestPath $BackupPath -Force
+        Remove-Item $DestPath -Force
+    }
+    
+    # 3. Create symlink
+    try {
+        New-Item -ItemType SymbolicLink -Path $DestPath -Target $SourcePath -Force | Out-Null
+        Write-Host "  ✓ Profile linked → $DestPath" -ForegroundColor Green
+    } catch {
+        Write-Host "  ✗ Failed to create symlink: $($_.Exception.Message)" -ForegroundColor Red
+        Write-Host "    You may need to run as Administrator or enable Developer Mode" -ForegroundColor Yellow
+    }
 }
 
-# 4. Link to the real profile using dynamic source
-$SourcePath = Join-Path -Path $PSScriptRoot -ChildPath 'Profile.ps1'
-New-Item -ItemType SymbolicLink -Path $DestPath -Target $SourcePath -Force   # admin not needed if Developer Mode on[8]
-
-Write-Host "Profile linked → $DestPath" -ForegroundColor Green
+Write-Host "`nProfile setup complete!" -ForegroundColor Green
+Write-Host "Both AllHosts and CurrentHost profiles now point to your dotfiles." -ForegroundColor Cyan
 
