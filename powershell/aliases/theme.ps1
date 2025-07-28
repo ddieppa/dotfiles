@@ -19,10 +19,12 @@ function Show-InteractiveMenu {
     $currentIndex = 0
     $totalPages = [Math]::Ceiling($Options.Count / $pageSize)
     
-    # Display title
-    Write-Host $Title -ForegroundColor White
-    Write-Host ("-" * 40) -ForegroundColor DarkGray
-    Write-Host ""
+    # Only display title if provided
+    if ($Title) {
+        Write-Host $Title -ForegroundColor White
+        Write-Host ("-" * 40) -ForegroundColor DarkGray
+        Write-Host ""
+    }
     
     function Show-MenuPage {
         param($page, $selectedIndex)
@@ -311,12 +313,12 @@ function Set-OhMyPoshTheme {
             Write-Host ""
             
             $sourceOptions = @(
-                [PSCustomObject]@{ Name = "Personal themes"; Value = "personal"; Symbol = "[P]" }
-                [PSCustomObject]@{ Name = "Oh My Posh built-in themes"; Value = "builtin"; Symbol = "[B]" }
-                [PSCustomObject]@{ Name = "All themes"; Value = "all"; Symbol = "[*]" }
+                [PSCustomObject]@{ Name = "Personal themes"; Value = "personal"; Symbol = "" }
+                [PSCustomObject]@{ Name = "Oh My Posh built-in themes"; Value = "builtin"; Symbol = "" }
+                [PSCustomObject]@{ Name = "All themes"; Value = "all"; Symbol = "" }
             )
             
-            $selectedSource = Show-InteractiveMenu -Title "Select theme source" -Options $sourceOptions -DisplayProperty "Name"
+            $selectedSource = Show-InteractiveMenu -Options $sourceOptions -DisplayProperty "Name"
             if (-not $selectedSource) {
                 Write-Host "`nTheme selection cancelled." -ForegroundColor Yellow
                 return
@@ -361,7 +363,7 @@ function Set-OhMyPoshTheme {
             }
         }
         
-        $selectedTheme = Show-InteractiveMenu -Title "Select a theme" -Options $menuThemes -DisplayProperty "Name" -ShowPagination
+        $selectedTheme = Show-InteractiveMenu -Options $menuThemes -DisplayProperty "Name" -ShowPagination
         
         if (-not $selectedTheme) {
             Write-Host "`nTheme selection cancelled." -ForegroundColor Yellow
