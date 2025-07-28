@@ -1,6 +1,161 @@
 # Oh My Posh Theme Management Functions
 # =====================================
 
+# Helper function for interactive menu with pagination
+function Show-InteractiveMenu {
+    param(
+        [string]$Title,
+        [array]$Options,
+        [string]$DisplayProperty = "Name",
+        [switch]$ShowPagination
+    )
+    
+    if ($Options.Count -eq 0) {
+        return $null
+    }
+    
+    $pageSize = 10
+    $currentPage = 0
+    $currentIndex = 0
+    $totalPages = [Math]::Ceiling($Options.Count / $pageSize)
+    
+    # Display title
+    Write-Host $Title -ForegroundColor White
+    Write-Host ("-" * 40) -ForegroundColor DarkGray
+    Write-Host ""
+    
+    function Show-MenuPage {
+        param($page, $selectedIndex)
+        
+        $startIndex = $page * $pageSize
+        $endIndex = [Math]::Min($startIndex + $pageSize, $Options.Count) - 1
+        
+        # Save cursor position
+        $cursorTop = [Console]::CursorTop
+        
+        # Display options for current page
+        for ($i = $startIndex; $i -le $endIndex; $i++) {
+            $option = $Options[$i]
+            $displayText = if ($DisplayProperty -and $option.$DisplayProperty) { 
+                $option.$DisplayProperty 
+            } else { 
+                $option.ToString() 
+            }
+            
+            $symbol = if ($option.Symbol -and $option.Symbol.Trim()) { "$($option.Symbol) " } else { "" }
+            $relativeIndex = $i - $startIndex
+            
+            if ($i -eq $selectedIndex) {
+                # Highlighted selection
+                Write-Host "  " -NoNewline
+                Write-Host " > $symbol$displayText " -ForegroundColor Black -BackgroundColor Magenta
+            }
+            else {
+                Write-Host "     $symbol$displayText" -ForegroundColor White
+            }
+        }
+        
+        # Add empty lines to maintain consistent height
+        $displayedItems = $endIndex - $startIndex + 1
+        for ($i = $displayedItems; $i -lt $pageSize; $i++) {
+            Write-Host ""
+        }
+        
+        # Show pagination info if needed
+        if ($ShowPagination -and $totalPages -gt 1) {
+            Write-Host ""
+            Write-Host "  Page $($page + 1)/$totalPages" -ForegroundColor DarkGray
+        }
+        
+        # Navigation hints
+        Write-Host ""
+        Write-Host "  Up/Down Navigate" -NoNewline -ForegroundColor DarkGray
+        if ($ShowPagination -and $totalPages -gt 1) {
+            Write-Host " | Left/Right Change page" -NoNewline -ForegroundColor DarkGray
+        }
+        Write-Host " | Enter Select | Esc Cancel" -ForegroundColor DarkGray
+        
+        # Return cursor to saved position for next update
+        [Console]::SetCursorPosition(0, $cursorTop)
+    }
+    
+    # Initial display
+    Show-MenuPage -page $currentPage -selectedIndex $currentIndex
+    
+    # Navigation loop
+    do {
+        $key = [Console]::ReadKey($true)
+        
+        switch ($key.Key) {
+            'UpArrow' {
+                if ($currentIndex -gt 0) {
+                    $currentIndex--
+                    $newPage = [Math]::Floor($currentIndex / $pageSize)
+                    if ($newPage -ne $currentPage) {
+                        $currentPage = $newPage
+                    }
+                    Show-MenuPage -page $currentPage -selectedIndex $currentIndex
+                }
+            }
+            'DownArrow' {
+                if ($currentIndex -lt ($Options.Count - 1)) {
+                    $currentIndex++
+                    $newPage = [Math]::Floor($currentIndex / $pageSize)
+                    if ($newPage -ne $currentPage) {
+                        $currentPage = $newPage
+                    }
+                    Show-MenuPage -page $currentPage -selectedIndex $currentIndex
+                }
+            }
+            'LeftArrow' {
+                if ($ShowPagination -and $currentPage -gt 0) {
+                    $currentPage--
+                    $currentIndex = $currentPage * $pageSize
+                    Show-MenuPage -page $currentPage -selectedIndex $currentIndex
+                }
+            }
+            'RightArrow' {
+                if ($ShowPagination -and $currentPage -lt ($totalPages - 1)) {
+                    $currentPage++
+                    $currentIndex = $currentPage * $pageSize
+                    Show-MenuPage -page $currentPage -selectedIndex $currentIndex
+                }
+            }
+            'PageUp' {
+                if ($ShowPagination -and $currentPage -gt 0) {
+                    $currentPage--
+                    $currentIndex = $currentPage * $pageSize
+                    Show-MenuPage -page $currentPage -selectedIndex $currentIndex
+                }
+            }
+            'PageDown' {
+                if ($ShowPagination -and $currentPage -lt ($totalPages - 1)) {
+                    $currentPage++
+                    $currentIndex = $currentPage * $pageSize
+                    Show-MenuPage -page $currentPage -selectedIndex $currentIndex
+                }
+            }
+            'Enter' {
+                # Move cursor below menu before returning
+                [Console]::SetCursorPosition(0, [Console]::CursorTop + $pageSize + 5)
+                return $Options[$currentIndex]
+            }
+            'Escape' {
+                # Move cursor below menu before returning
+                [Console]::SetCursorPosition(0, [Console]::CursorTop + $pageSize + 5)
+                return $null
+            }
+            'Q' {
+                if ($key.KeyChar -eq 'q' -or $key.KeyChar -eq 'Q') {
+                    # Move cursor below menu before returning
+                    [Console]::SetCursorPosition(0, [Console]::CursorTop + $pageSize + 5)
+                    return $null
+                }
+            }
+        }
+    } while ($true)
+}
+
 # Oh My Posh Theme Management
 function Set-OhMyPoshTheme {
     <#
@@ -145,44 +300,75 @@ function Set-OhMyPoshTheme {
             }
         }
     } else {
-        # Interactive selection
-        Write-Host "`n🎨 Oh My Posh Theme Selector" -ForegroundColor Cyan
-        Write-Host "=====================================`n" -ForegroundColor Cyan
+        # Interactive theme selection with enhanced UI
+        Clear-Host
+        
+        # If no specific filter is provided, ask the user to choose
+        if (-not $Personal -and -not $BuiltIn) {
+            # Step 1: Select theme source
+            Write-Host ""
+            Write-Host " Select Theme Source" -ForegroundColor Black -BackgroundColor Blue
+            Write-Host ""
+            
+            $sourceOptions = @(
+                [PSCustomObject]@{ Name = "Personal themes"; Value = "personal"; Symbol = "[P]" }
+                [PSCustomObject]@{ Name = "Oh My Posh built-in themes"; Value = "builtin"; Symbol = "[B]" }
+                [PSCustomObject]@{ Name = "All themes"; Value = "all"; Symbol = "[*]" }
+            )
+            
+            $selectedSource = Show-InteractiveMenu -Title "Select theme source" -Options $sourceOptions -DisplayProperty "Name"
+            if (-not $selectedSource) {
+                Write-Host "`nTheme selection cancelled." -ForegroundColor Yellow
+                return
+            }
+            
+            # Filter themes based on selection
+            if ($selectedSource.Value -eq "personal") {
+                $availableThemes = $personalThemes
+            } elseif ($selectedSource.Value -eq "builtin") {
+                $availableThemes = $builtInThemes
+            }
+            # else use all themes (already set)
+            
+            # Re-sort after filtering
+            $availableThemes = $availableThemes | Sort-Object Type, Name
+            
+            # Clear screen for theme selection
+            Clear-Host
+        }
+        
+        # Show title for theme selection
+        Write-Host ""
+        Write-Host " Select Theme" -ForegroundColor Black -BackgroundColor Blue
+        Write-Host ""
         
         if ($availableThemes.Count -eq 0) {
-            Write-Warning "No themes found."
+            Write-Warning "No themes found in the selected source."
             return
         }
         
-        # Display themes with numbers
-        for ($i = 0; $i -lt $availableThemes.Count; $i++) {
-            $theme = $availableThemes[$i]
-            $color = if ($theme.Type -eq 'Personal') { 'Green' } else { 'Cyan' }
-            $symbol = if ($theme.Type -eq 'Personal') { '📁' } else { '🎨' }
-            Write-Host ("{0,3}: {1} {2}" -f ($i + 1), $symbol, $theme.Name) -ForegroundColor $color
-        }
-        
-        Write-Host "`n  0: Cancel" -ForegroundColor Red
-        Write-Host "`nLegend: 📁 Personal themes | 🎨 Built-in themes" -ForegroundColor Gray
-        
-        # Get user selection
-        do {
-            $selection = Read-Host "`nSelect theme number (1-$($availableThemes.Count)) or 0 to cancel"
-            $selectionNum = $null
-            $validSelection = [int]::TryParse($selection, [ref]$selectionNum) -and 
-                              $selectionNum -ge 0 -and $selectionNum -le $availableThemes.Count
+        # Convert themes to format expected by Show-InteractiveMenu
+        $menuThemes = $availableThemes | ForEach-Object {
+            # Clean up theme name by removing .omp extension if present
+            $cleanName = $_.Name -replace '\.omp$', ''
             
-            if (-not $validSelection) {
-                Write-Warning "Please enter a valid number between 0 and $($availableThemes.Count)"
+            [PSCustomObject]@{
+                Name = $cleanName
+                Path = $_.Path
+                Type = $_.Type
+                Symbol = ""  # No symbol prefix
+                DisplayName = $cleanName
             }
-        } while (-not $validSelection)
+        }
         
-        if ($selectionNum -eq 0) {
-            Write-Host "Theme selection cancelled." -ForegroundColor Yellow
+        $selectedTheme = Show-InteractiveMenu -Title "Select a theme" -Options $menuThemes -DisplayProperty "Name" -ShowPagination
+        
+        if (-not $selectedTheme) {
+            Write-Host "`nTheme selection cancelled." -ForegroundColor Yellow
             return
         }
         
-        $selectedTheme = $availableThemes[$selectionNum - 1]
+        Write-Host "`n[OK] Selected: $($selectedTheme.Name)" -ForegroundColor Green
     }
     
     # Apply the theme

@@ -21,76 +21,258 @@ $SourcePath = Join-Path -Path $PSScriptRoot -ChildPath 'Profile.ps1'
 
 # Function to select Oh My Posh theme
 function Select-OhMyPoshTheme {
-    # Try propmt folder first, then prompt folder for backward compatibility
-    $ThemeFolders = @(
-        (Join-Path -Path $PSScriptRoot -ChildPath 'propmt'),
-        (Join-Path -Path $PSScriptRoot -ChildPath 'prompt')
-    )
+    # Clear screen for better UI experience
+    Clear-Host
     
-    $ThemeFolder = $ThemeFolders | Where-Object { Test-Path $_ } | Select-Object -First 1
-    
-    if (-not $ThemeFolder) {
-        Write-Host "Theme folder not found. Looked in:" -ForegroundColor Red
-        $ThemeFolders | ForEach-Object { Write-Host "  - $_" -ForegroundColor Gray }
-        return $null
-    }
-    
-    # Get all available themes
-    $ThemeFiles = Get-ChildItem -Path $ThemeFolder -Filter '*.omp.json' | Sort-Object Name
-    
-    if ($ThemeFiles.Count -eq 0) {
-        Write-Host "No Oh My Posh themes found in $ThemeFolder" -ForegroundColor Yellow
-        return $null
-    }
-    
-    Write-Host "`nAvailable Oh My Posh themes:" -ForegroundColor Cyan
-    Write-Host "=============================" -ForegroundColor Cyan
-    
-    for ($i = 0; $i -lt $ThemeFiles.Count; $i++) {
-        $themeName = [System.IO.Path]::GetFileNameWithoutExtension($ThemeFiles[$i].Name)
-        Write-Host "  [$($i + 1)] $themeName" -ForegroundColor White
-    }
-    
-    Write-Host "  [0] Skip theme selection (keep current)" -ForegroundColor Gray
+    # Title
+    Write-Host ""
+    Write-Host " Select Theme" -ForegroundColor Black -BackgroundColor Blue
     Write-Host ""
     
-    do {
-        $selection = Read-Host "Select a theme (1-$($ThemeFiles.Count) or 0 to skip)"
+    # Step 1: Select theme source
+    $sourceOptions = @(
+        [PSCustomObject]@{ Name = "Personal themes"; Value = "personal"; Symbol = "[P]" }
+        [PSCustomObject]@{ Name = "Oh My Posh built-in themes"; Value = "builtin"; Symbol = "[B]" }
+    )
+    
+    $selectedSource = Show-InteractiveMenu -Title "Select theme source" -Options $sourceOptions -DisplayProperty "Name"
+    if (-not $selectedSource) {
+        Write-Host "`nTheme selection cancelled." -ForegroundColor Yellow
+        return $null
+    }
+    
+    # Get themes based on selection
+    $themes = @()
+    
+    if ($selectedSource.Value -eq "personal") {
+        # Try propmt folder first, then prompt folder for backward compatibility
+        $ThemeFolders = @(
+            (Join-Path -Path $PSScriptRoot -ChildPath 'propmt'),
+            (Join-Path -Path $PSScriptRoot -ChildPath 'prompt')
+        )
         
-        if ($selection -eq '0') {
-            Write-Host "Skipping theme selection." -ForegroundColor Yellow
-            return $null
+        $ThemeFolder = $ThemeFolders | Where-Object { Test-Path $_ } | Select-Object -First 1
+        
+        if ($ThemeFolder -and (Test-Path $ThemeFolder)) {
+            $themes = Get-ChildItem -Path $ThemeFolder -Filter '*.omp.json' | 
+                ForEach-Object {
+                    # Clean up theme name by removing .omp extension if present
+                    $cleanName = $_.BaseName -replace '\.omp$', ''
+                    [PSCustomObject]@{
+                        Name = $cleanName
+                        Path = $_.FullName
+                        Symbol = ""
+                    }
+                } | Sort-Object Name
         }
+    }
+    else {
+        # Get built-in themes
+        if ($env:POSH_THEMES_PATH -and (Test-Path $env:POSH_THEMES_PATH)) {
+            $themes = Get-ChildItem -Path $env:POSH_THEMES_PATH -Filter '*.omp.json' | 
+                ForEach-Object {
+                    # Clean up theme name by removing .omp extension if present
+                    $cleanName = $_.BaseName -replace '\.omp$', ''
+                    [PSCustomObject]@{
+                        Name = $cleanName
+                        Path = $_.FullName
+                        Symbol = ""
+                    }
+                } | Sort-Object Name
+        }
+    }
+    
+    if ($themes.Count -eq 0) {
+        Write-Host "`nNo themes found in the selected source." -ForegroundColor Yellow
+        return $null
+    }
+    
+    # Step 2: Select specific theme
+    Clear-Host
+    Write-Host ""
+    Write-Host " Select Theme" -ForegroundColor Black -BackgroundColor Blue
+    Write-Host ""
+    
+    $selectedTheme = Show-InteractiveMenu -Title "Select a theme" -Options $themes -DisplayProperty "Name" -ShowPagination
+    if (-not $selectedTheme) {
+        Write-Host "`nTheme selection cancelled." -ForegroundColor Yellow
+        return $null
+    }
+    
+    Write-Host "`n[OK] Selected theme: $($selectedTheme.Name)" -ForegroundColor Green
+    return $selectedTheme.Path
+}
+
+# Helper function for interactive menu with pagination
+function Show-InteractiveMenu {
+    param(
+        [string]$Title,
+        [array]$Options,
+        [string]$DisplayProperty = "Name",
+        [switch]$ShowPagination
+    )
+    
+    if ($Options.Count -eq 0) {
+        return $null
+    }
+    
+    $pageSize = 10
+    $currentPage = 0
+    $currentIndex = 0
+    $totalPages = [Math]::Ceiling($Options.Count / $pageSize)
+    
+    # Display title
+    Write-Host $Title -ForegroundColor White
+    Write-Host ("-" * 40) -ForegroundColor DarkGray
+    Write-Host ""
+    
+    function Show-MenuPage {
+        param($page, $selectedIndex)
         
-        $selectionInt = 0
-        if ([int]::TryParse($selection, [ref]$selectionInt) -and 
-            $selectionInt -ge 1 -and $selectionInt -le $ThemeFiles.Count) {
+        $startIndex = $page * $pageSize
+        $endIndex = [Math]::Min($startIndex + $pageSize, $Options.Count) - 1
+        
+        # Save cursor position
+        $cursorTop = [Console]::CursorTop
+        
+        # Display options for current page
+        for ($i = $startIndex; $i -le $endIndex; $i++) {
+            $option = $Options[$i]
+            $displayText = if ($DisplayProperty -and $option.$DisplayProperty) { 
+                $option.$DisplayProperty 
+            } else { 
+                $option.ToString() 
+            }
             
-            $selectedTheme = $ThemeFiles[$selectionInt - 1]
-            Write-Host "Selected theme: $($selectedTheme.BaseName)" -ForegroundColor Green
-            return $selectedTheme.FullName
+            $symbol = if ($option.Symbol -and $option.Symbol.Trim()) { "$($option.Symbol) " } else { "" }
+            $relativeIndex = $i - $startIndex
+            
+            if ($i -eq $selectedIndex) {
+                # Highlighted selection
+                Write-Host "  " -NoNewline
+                Write-Host " > $symbol$displayText " -ForegroundColor Black -BackgroundColor Magenta
+            }
+            else {
+                Write-Host "     $symbol$displayText" -ForegroundColor White
+            }
         }
         
-        Write-Host "Invalid selection. Please enter a number between 0 and $($ThemeFiles.Count)." -ForegroundColor Red
+        # Add empty lines to maintain consistent height
+        $displayedItems = $endIndex - $startIndex + 1
+        for ($i = $displayedItems; $i -lt $pageSize; $i++) {
+            Write-Host ""
+        }
+        
+        # Show pagination info if needed
+        if ($ShowPagination -and $totalPages -gt 1) {
+            Write-Host ""
+            Write-Host "  Page $($page + 1)/$totalPages" -ForegroundColor DarkGray
+        }
+        
+        # Navigation hints
+        Write-Host ""
+        Write-Host "  Up/Down Navigate" -NoNewline -ForegroundColor DarkGray
+        if ($ShowPagination -and $totalPages -gt 1) {
+            Write-Host " | Left/Right Change page" -NoNewline -ForegroundColor DarkGray
+        }
+        Write-Host " | Enter Select | Esc Cancel" -ForegroundColor DarkGray
+        
+        # Return cursor to saved position for next update
+        [Console]::SetCursorPosition(0, $cursorTop)
+    }
+    
+    # Initial display
+    Show-MenuPage -page $currentPage -selectedIndex $currentIndex
+    
+    # Navigation loop
+    do {
+        $key = [Console]::ReadKey($true)
+        
+        switch ($key.Key) {
+            'UpArrow' {
+                if ($currentIndex -gt 0) {
+                    $currentIndex--
+                    $newPage = [Math]::Floor($currentIndex / $pageSize)
+                    if ($newPage -ne $currentPage) {
+                        $currentPage = $newPage
+                    }
+                    Show-MenuPage -page $currentPage -selectedIndex $currentIndex
+                }
+            }
+            'DownArrow' {
+                if ($currentIndex -lt ($Options.Count - 1)) {
+                    $currentIndex++
+                    $newPage = [Math]::Floor($currentIndex / $pageSize)
+                    if ($newPage -ne $currentPage) {
+                        $currentPage = $newPage
+                    }
+                    Show-MenuPage -page $currentPage -selectedIndex $currentIndex
+                }
+            }
+            'LeftArrow' {
+                if ($ShowPagination -and $currentPage -gt 0) {
+                    $currentPage--
+                    $currentIndex = $currentPage * $pageSize
+                    Show-MenuPage -page $currentPage -selectedIndex $currentIndex
+                }
+            }
+            'RightArrow' {
+                if ($ShowPagination -and $currentPage -lt ($totalPages - 1)) {
+                    $currentPage++
+                    $currentIndex = $currentPage * $pageSize
+                    Show-MenuPage -page $currentPage -selectedIndex $currentIndex
+                }
+            }
+            'PageUp' {
+                if ($ShowPagination -and $currentPage -gt 0) {
+                    $currentPage--
+                    $currentIndex = $currentPage * $pageSize
+                    Show-MenuPage -page $currentPage -selectedIndex $currentIndex
+                }
+            }
+            'PageDown' {
+                if ($ShowPagination -and $currentPage -lt ($totalPages - 1)) {
+                    $currentPage++
+                    $currentIndex = $currentPage * $pageSize
+                    Show-MenuPage -page $currentPage -selectedIndex $currentIndex
+                }
+            }
+            'Enter' {
+                # Move cursor below menu before returning
+                [Console]::SetCursorPosition(0, [Console]::CursorTop + $pageSize + 5)
+                return $Options[$currentIndex]
+            }
+            'Escape' {
+                # Move cursor below menu before returning
+                [Console]::SetCursorPosition(0, [Console]::CursorTop + $pageSize + 5)
+                return $null
+            }
+            'Q' {
+                if ($key.KeyChar -eq 'q' -or $key.KeyChar -eq 'Q') {
+                    # Move cursor below menu before returning
+                    [Console]::SetCursorPosition(0, [Console]::CursorTop + $pageSize + 5)
+                    return $null
+                }
+            }
+        }
     } while ($true)
 }
 
-# Select Oh My Posh theme
-$SelectedTheme = Select-OhMyPoshTheme
-
 # Handle theme-only mode
 if ($ThemeOnly) {
-    Write-Host "🎨 Oh My Posh Theme Configuration" -ForegroundColor Cyan
-    Write-Host "=================================" -ForegroundColor Cyan
+    Write-Host "Theme Configuration" -ForegroundColor Cyan
+    Write-Host "==================" -ForegroundColor Cyan
+    
+    $SelectedTheme = Select-OhMyPoshTheme
     
     if ($SelectedTheme) {
         $ThemeConfigFile = Join-Path -Path $PSScriptRoot -ChildPath '.theme-config'
         try {
             $SelectedTheme | Out-File -FilePath $ThemeConfigFile -Encoding UTF8 -Force
-            Write-Host "`n✓ Theme configuration updated: $(Split-Path $SelectedTheme -Leaf)" -ForegroundColor Green
+            Write-Host "`n[OK] Theme configuration updated: $(Split-Path $SelectedTheme -Leaf)" -ForegroundColor Green
             Write-Host "Restart your PowerShell session to apply the new theme." -ForegroundColor Cyan
         } catch {
-            Write-Host "`n⚠️  Failed to save theme configuration: $($_.Exception.Message)" -ForegroundColor Yellow
+            Write-Host "`n[!] Failed to save theme configuration: $($_.Exception.Message)" -ForegroundColor Yellow
         }
     } else {
         Write-Host "`nNo changes made to theme configuration." -ForegroundColor Gray
@@ -134,21 +316,24 @@ foreach ($ProfileInfo in $ProfilePaths) {
 Write-Host "`nProfile setup complete!" -ForegroundColor Green
 Write-Host "Both AllHosts and CurrentHost profiles now point to your dotfiles." -ForegroundColor Cyan
 
+# Select Oh My Posh theme for full installation
+$SelectedTheme = Select-OhMyPoshTheme
+
 # Save selected theme configuration
 if ($SelectedTheme) {
     $ThemeConfigFile = Join-Path -Path $PSScriptRoot -ChildPath '.theme-config'
     try {
         $SelectedTheme | Out-File -FilePath $ThemeConfigFile -Encoding UTF8 -Force
-        Write-Host "✓ Theme configuration saved: $(Split-Path $SelectedTheme -Leaf)" -ForegroundColor Green
+        Write-Host "[OK] Theme configuration saved: $(Split-Path $SelectedTheme -Leaf)" -ForegroundColor Green
     } catch {
-        Write-Host "⚠️  Failed to save theme configuration: $($_.Exception.Message)" -ForegroundColor Yellow
+        Write-Host "[!] Failed to save theme configuration: $($_.Exception.Message)" -ForegroundColor Yellow
     }
 } else {
-    Write-Host "ℹ️  No theme selected - profile will use default theme detection" -ForegroundColor Cyan
+    Write-Host "[i] No theme selected - profile will use default theme detection" -ForegroundColor Cyan
 }
 
 Write-Host "`n" -NoNewline
-Write-Host "💡 Tip: " -ForegroundColor Yellow -NoNewline
+Write-Host "Tip: " -ForegroundColor Yellow -NoNewline
 Write-Host "You can change your theme later by running: " -NoNewline
 Write-Host ".\install.ps1 -ThemeOnly" -ForegroundColor White
 
