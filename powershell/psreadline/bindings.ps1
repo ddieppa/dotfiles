@@ -1,5 +1,8 @@
 # $RepoRoot\psreadline\bindings.ps1
-Import-Module PSReadLine
+# Import PSReadLine only if not already loaded
+if (-not (Get-Module PSReadLine)) {
+    Import-Module PSReadLine
+}
 Set-PSReadLineOption -PredictionSource History
 Set-PSReadLineOption -HistorySaveStyle SaveIncrementally
 

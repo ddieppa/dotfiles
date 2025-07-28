@@ -23,8 +23,10 @@ foreach ($m in $required) {
     }
 }
 
-# Import only successfully installed modules
-$availableModules = $required | Where-Object { Get-Module -ListAvailable -Name $_ }
+# Import only successfully installed modules (skip PSReadLine as it's handled separately)
+$availableModules = $required | Where-Object { 
+    $_ -ne 'PSReadLine' -and (Get-Module -ListAvailable -Name $_) 
+}
 if ($availableModules) {
     Import-Module $availableModules -PassThru | Out-Null
 }
