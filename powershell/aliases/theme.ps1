@@ -48,12 +48,11 @@ function Show-InteractiveMenu {
             $relativeIndex = $i - $startIndex
             
             if ($i -eq $selectedIndex) {
-                # Highlighted selection
-                Write-Host "  " -NoNewline
-                Write-Host " > $symbol$displayText " -ForegroundColor Black -BackgroundColor Magenta
+                # Highlighted selection with colored text and bullet
+                Write-Host "  • $symbol$displayText" -ForegroundColor Magenta
             }
             else {
-                Write-Host "     $symbol$displayText" -ForegroundColor White
+                Write-Host "    $symbol$displayText" -ForegroundColor White
             }
         }
         
