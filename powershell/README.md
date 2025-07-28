@@ -51,13 +51,19 @@ Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser -Force
    git clone https://github.com/ddieppa/dotfiles D:\any\folder\dotfiles
    ```
 
-
 2. **Run the installer**:
     ```powershell
     & D:\any\folder\dotfiles\powershell\install.ps1
     ```
+    
+    During installation, you'll be prompted to select an Oh My Posh theme from the available options in the theme folder.
 
 3. **Restart PowerShell** to see your new environment.
+
+**Theme Management**: You can change your theme later without re-running the full installation:
+```powershell
+.\install.ps1 -ThemeOnly
+```
 
 The installer will:
 - Install required modules (PSReadLine, Terminal-Icons, Oh My Posh)[14][11]
@@ -221,6 +227,62 @@ Set-PSReadLineKeyHandler -Key Alt+f -Function ForwardWord
 | Up/Down | Prefix-aware history search |
 
 ## 🎨 Oh My Posh Integration
+
+### Theme Selection During Installation
+
+When you run the installer, you'll be presented with a menu to select your preferred Oh My Posh theme:
+
+```powershell
+Available Oh My Posh themes:
+=============================
+  [1] minimal
+  [2] paradox  
+  [3] powerline
+  [4] the-unnamed.personal
+  [0] Skip theme selection (keep current)
+
+Select a theme (1-4 or 0 to skip):
+```
+
+The installer will save your selection and configure your profile to use the chosen theme automatically.
+
+### Changing Themes Later
+
+You can change your theme at any time without re-running the full installation:
+
+```powershell
+.\install.ps1 -ThemeOnly
+```
+
+This will show the theme selection menu and update your configuration.
+
+### Available Themes
+
+The repository includes several pre-configured themes:
+
+- **minimal** - A clean, simple theme with basic user, path, and git information
+- **paradox** - A colorful powerline-style theme with diamond shapes and rich colors
+- **powerline** - A classic powerline theme with segment separators and icons
+- **the-unnamed.personal** - Your existing custom theme
+
+### Manual Theme Configuration
+
+You can also manually set a theme by creating a `.theme-config` file in the powershell directory:
+
+```powershell
+# Set to use the minimal theme
+echo "d:\dotfiles\powershell\propmt\minimal.omp.json" > .theme-config
+```
+
+### Theme Configuration System
+
+The profile uses a hierarchical approach to theme selection:
+
+1. **Configured theme**: Checks for `.theme-config` file with explicit theme path
+2. **Auto-discovery**: Looks for any `.omp.json` file in `propmt/` or `prompt/` folders  
+3. **Built-in fallback**: Uses Oh My Posh's built-in 'paradox' theme if no custom themes found
+
+This ensures your profile never breaks even if theme files are missing.
 
 ### Smart Theme Fallback
 

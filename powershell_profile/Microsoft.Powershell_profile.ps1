@@ -16,7 +16,7 @@ if ($PSVersionTable.PSVersion.Major -ge 7) {
 
 # Check for minimum required PowerShell version
 if ($PSVersionTable.PSVersion.Major -lt 7) {
-    Write-Warning "⚠️ PowerShell version is below 7. Some features may not work optimally."
+    Write-Warning "PowerShell version is below 7. Some features may not work optimally."
 }
 
 # Check execution policy to ensure scripts can run

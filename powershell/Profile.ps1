@@ -63,8 +63,40 @@ Write-Host "  ✓ PSReadLine bindings loaded ($($ProfileTimer.ElapsedMillisecond
 # 4. Prompt --------------------------------------------------------
 Write-Host "  🎨 Loading Oh My Posh theme..." -ForegroundColor Yellow
 $ProfileTimer.Restart()
-$ThemeFile = Join 'prompt\night-owl.omp.json'
-$Config    = if (Test-Path $ThemeFile) { $ThemeFile } else { 'paradox' }  # fallback
+
+# Look for theme configuration file first
+$ThemeConfigFile = Join '.theme-config'
+$SelectedThemeFile = $null
+
+if (Test-Path $ThemeConfigFile) {
+    $SelectedThemeFile = Get-Content $ThemeConfigFile -Raw | ForEach-Object { $_.Trim() }
+    if ($SelectedThemeFile -and (Test-Path $SelectedThemeFile)) {
+        Write-Host "  📝 Using configured theme: $(Split-Path $SelectedThemeFile -Leaf)" -ForegroundColor Gray
+    } else {
+        $SelectedThemeFile = $null
+    }
+}
+
+# If no configured theme, look for any theme in prompt folder only
+if (-not $SelectedThemeFile) {
+    $ThemeFolder = Join 'prompt'
+    if (Test-Path $ThemeFolder) {
+        $AvailableThemes = Get-ChildItem -Path $ThemeFolder -Filter '*.omp.json' | Select-Object -First 1
+        if ($AvailableThemes) {
+            $SelectedThemeFile = $AvailableThemes.FullName
+            Write-Host "  🎯 Using first available theme: $($AvailableThemes.Name) from prompt" -ForegroundColor Gray
+        }
+    }
+}
+
+# Final fallback to built-in theme
+$Config = if ($SelectedThemeFile -and (Test-Path $SelectedThemeFile)) { 
+    $SelectedThemeFile 
+} else { 
+    Write-Host "  ⚠️  No custom themes found, using built-in 'paradox'" -ForegroundColor Yellow
+    'paradox' 
+}
+
 oh-my-posh init pwsh --config $Config | Invoke-Expression
 Write-Host "  ✓ Oh My Posh theme loaded ($($ProfileTimer.ElapsedMilliseconds)ms)" -ForegroundColor Green
 
