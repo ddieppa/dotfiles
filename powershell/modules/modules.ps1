@@ -28,10 +28,22 @@ $availableModules = $required | Where-Object {
     $_ -ne 'PSReadLine' -and (Get-Module -ListAvailable -Name $_) 
 }
 if ($availableModules) {
-    Import-Module $availableModules -PassThru | Out-Null
+    foreach ($module in $availableModules) {
+        $moduleTimer = [System.Diagnostics.Stopwatch]::StartNew()
+        Write-Host "    Importing $module..." -ForegroundColor DarkGray
+        try {
+            Import-Module $module -Force -ErrorAction Stop
+            Write-Host "    ✓ $module loaded ($($moduleTimer.ElapsedMilliseconds)ms)" -ForegroundColor DarkGreen
+        } catch {
+            Write-Host "    ✗ Failed to load $module : $($_.Exception.Message)" -ForegroundColor Red
+        }
+        $moduleTimer.Stop()
+    }
 }
 
 # Install Oh My Posh using winget (not as a PowerShell module)
+$ohMyPoshTimer = [System.Diagnostics.Stopwatch]::StartNew()
+Write-Host "    Checking Oh My Posh..." -ForegroundColor DarkGray
 if (-not (Get-Command oh-my-posh -ErrorAction SilentlyContinue)) {
     Write-Host "Installing Oh My Posh via winget..." -Foreground Yellow
     if (Get-Command winget -ErrorAction SilentlyContinue) {
@@ -43,4 +55,7 @@ if (-not (Get-Command oh-my-posh -ErrorAction SilentlyContinue)) {
     } else {
         Write-Warning "winget not available. Please install Oh My Posh manually from https://ohmyposh.dev/docs/installation/windows"
     }
+} else {
+    Write-Host "    ✓ Oh My Posh already available ($($ohMyPoshTimer.ElapsedMilliseconds)ms)" -ForegroundColor DarkGreen
 }
+$ohMyPoshTimer.Stop()
