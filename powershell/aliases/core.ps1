@@ -412,24 +412,66 @@ function Get-OhMyPoshTheme {
     Write-Host "`n🎨 Current Oh My Posh Theme" -ForegroundColor Cyan
     Write-Host "==========================`n" -ForegroundColor Cyan
     
+    $currentThemePath = $null
+    $configSource = "Unknown"
+    
+    # Check our theme config file first
     if (Test-Path $themeConfigFile) {
         $currentThemePath = Get-Content $themeConfigFile -Raw | ForEach-Object { $_.Trim() }
+        $configSource = "Config file (.theme-config)"
         
-        if (Test-Path $currentThemePath) {
-            $themeName = [System.IO.Path]::GetFileNameWithoutExtension($currentThemePath)
-            $themeType = if ($currentThemePath.StartsWith($promptFolder)) { 'Personal' } else { 'Built-in' }
-            $themeSymbol = if ($themeType -eq 'Personal') { '📁' } else { '🎨' }
-            
-            Write-Host "Theme: $themeSymbol $themeName" -ForegroundColor Green
-            Write-Host "Type:  $themeType" -ForegroundColor Gray
-            Write-Host "Path:  $currentThemePath" -ForegroundColor Gray
-        } else {
-            Write-Host "⚠️  Configured theme file not found: $currentThemePath" -ForegroundColor Yellow
-            Write-Host "The theme configuration may be outdated." -ForegroundColor Yellow
+        if (-not (Test-Path $currentThemePath)) {
+            $currentThemePath = $null
         }
+    }
+    
+    # If no config file or path invalid, check POSH_THEME environment variable
+    if (-not $currentThemePath -and $env:POSH_THEME) {
+        $currentThemePath = $env:POSH_THEME
+        $configSource = "Environment variable (POSH_THEME)"
+        
+        if (-not (Test-Path $currentThemePath)) {
+            $currentThemePath = $null
+        }
+    }
+    
+    # If still no theme found, try to extract from oh-my-posh debug output
+    if (-not $currentThemePath) {
+        try {
+            $debugOutput = oh-my-posh debug --plain 2>$null | Out-String
+            if ($debugOutput -match "Config path:\s*(.+\.omp\.json)") {
+                $currentThemePath = $matches[1].Trim()
+                $configSource = "Detected from Oh My Posh debug"
+                
+                if (-not (Test-Path $currentThemePath)) {
+                    $currentThemePath = $null
+                }
+            }
+        } catch {
+            # Debug command failed, continue without it
+        }
+    }
+    
+    if ($currentThemePath) {
+        $themeName = [System.IO.Path]::GetFileNameWithoutExtension($currentThemePath)
+        $themeType = if ($currentThemePath.StartsWith($promptFolder)) { 'Personal' } elseif ($env:POSH_THEMES_PATH -and $currentThemePath.StartsWith($env:POSH_THEMES_PATH)) { 'Built-in' } else { 'Custom' }
+        $themeSymbol = switch ($themeType) {
+            'Personal' { '📁' }
+            'Built-in' { '🎨' }
+            'Custom' { '⚙️' }
+        }
+        
+        Write-Host "Theme:  $themeSymbol $themeName" -ForegroundColor Green
+        Write-Host "Type:   $themeType" -ForegroundColor Gray
+        Write-Host "Source: $configSource" -ForegroundColor Gray
+        Write-Host "Path:   $currentThemePath" -ForegroundColor Gray
     } else {
-        Write-Host "⚠️  No theme configuration found." -ForegroundColor Yellow
-        Write-Host "Using default Oh My Posh behavior." -ForegroundColor Yellow
+        Write-Host "⚠️  No Oh My Posh theme configuration detected." -ForegroundColor Yellow
+        Write-Host "This could mean:" -ForegroundColor Yellow
+        Write-Host "  • Oh My Posh is using a built-in default theme" -ForegroundColor Gray
+        Write-Host "  • Theme is configured directly in your PowerShell profile" -ForegroundColor Gray
+        Write-Host "  • Oh My Posh is not properly initialized" -ForegroundColor Gray
+        Write-Host "`nTry running 'oh-my-posh debug --plain' for more information." -ForegroundColor Cyan
     }
     
     Write-Host ""
@@ -470,11 +512,18 @@ function Get-ThemeHelp {
     Write-Host "`nTheme Types:" -ForegroundColor Yellow
     Write-Host "  📁 Personal  - Custom themes in your dotfiles/powershell/prompt folder" -ForegroundColor Green
     Write-Host "  🎨 Built-in  - Oh My Posh included themes" -ForegroundColor Cyan
+    Write-Host "  ⚙️  Custom    - Themes from other locations" -ForegroundColor Magenta
+    
+    Write-Host "`nDetection Sources:" -ForegroundColor Yellow
+    Write-Host "  • Config file (.theme-config) - Themes set via this function" -ForegroundColor Gray
+    Write-Host "  • Environment variable (POSH_THEME) - Set by Oh My Posh" -ForegroundColor Gray
+    Write-Host "  • Debug output detection - Fallback method" -ForegroundColor Gray
     
     Write-Host "`nNotes:" -ForegroundColor Yellow
     Write-Host "  • Theme settings are saved to .theme-config file" -ForegroundColor Gray
     Write-Host "  • Personal themes take priority when names conflict" -ForegroundColor Gray
     Write-Host "  • Use 'reload' or start a new session to see full effect" -ForegroundColor Gray
+    Write-Host "  • Run 'oh-my-posh debug --plain' for detailed theme info" -ForegroundColor Gray
     Write-Host ""
 }
 

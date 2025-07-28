@@ -81,10 +81,35 @@ theme-help
 - Automatically updated with Oh My Posh updates
 - 120+ themes available
 
+## Theme Detection
+
+The `theme-current` command uses multiple detection methods to identify the active theme:
+
+### Detection Priority
+1. **Config file (.theme-config)** - Themes set via the theme management functions
+2. **Environment variable (POSH_THEME)** - Automatically set by Oh My Posh
+3. **Debug output detection** - Fallback method using Oh My Posh debug information
+
+### Theme Types
+- **📁 Personal** - Custom themes in your `dotfiles/powershell/prompt/` folder
+- **🎨 Built-in** - Oh My Posh included themes from `$env:POSH_THEMES_PATH`
+- **⚙️ Custom** - Themes from other locations
+
+### When No Theme is Detected
+If no theme configuration is found, it could mean:
+- Oh My Posh is using a built-in default theme
+- Theme is configured directly in your PowerShell profile
+- Oh My Posh is not properly initialized
+
+Use `oh-my-posh debug --plain` for detailed diagnostic information.
+
 ## Configuration
 
 ### Theme Persistence
 The selected theme is saved to `.theme-config` file in your PowerShell profile directory and automatically loaded on profile startup.
+
+### Multiple Detection Methods
+The system can detect currently active themes even when not set through these functions, providing comprehensive theme information regardless of how the theme was configured.
 
 ### Profile Integration
 The theme management is integrated into the PowerShell profile at:
