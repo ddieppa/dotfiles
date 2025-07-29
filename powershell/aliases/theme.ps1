@@ -106,8 +106,10 @@ function Show-InteractiveMenu {
         # Always output exactly $pageSize lines total to maintain consistent layout
         $displayedItems = $endIndex - $startIndex + 1
         $emptyLinesNeeded = $pageSize - $displayedItems
-        for ($i = 0; $i -lt $emptyLinesNeeded; $i++) {
-            Write-Host "".PadRight(80) # Clear remaining lines
+        if ($emptyLinesNeeded -gt 0) {
+            for ($i = 0; $i -lt $emptyLinesNeeded; $i++) {
+                Write-Host "".PadRight(80) # Clear remaining lines
+            }
         }
 
         # Show pagination info if needed
