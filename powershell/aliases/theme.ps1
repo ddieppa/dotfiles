@@ -15,7 +15,7 @@ function Get-ThemeList {
     $themes = @()
     if (Test-Path $Folder) {
         $themes = Get-ChildItem -Path $Folder -Filter '*.omp.json' | ForEach-Object {
-            $cleanName = $_.BaseName -replace '\.omp$', ''
+            $cleanName = $_.Name -replace '\.omp\.json$', ''
             [PSCustomObject]@{
                 Name = $cleanName
                 Path = $_.FullName
