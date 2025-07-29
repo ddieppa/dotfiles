@@ -1,3 +1,31 @@
+# Helper function to get a list of themes from a folder, with caching
+function Get-ThemeList {
+    param(
+        [string]$Folder,
+        [string]$Type = "Personal",
+        [switch]$ForceRefresh
+    )
+    if (-not $script:ThemeListCache) {
+        $script:ThemeListCache = @{}
+    }
+    $cacheKey = "$Type|$Folder"
+    if (-not $ForceRefresh -and $script:ThemeListCache.ContainsKey($cacheKey)) {
+        return $script:ThemeListCache[$cacheKey]
+    }
+    $themes = @()
+    if (Test-Path $Folder) {
+        $themes = Get-ChildItem -Path $Folder -Filter '*.omp.json' | ForEach-Object {
+            $cleanName = $_.BaseName -replace '\.omp$', ''
+            [PSCustomObject]@{
+                Name = $cleanName
+                Path = $_.FullName
+                Type = $Type
+            }
+        } | Sort-Object Name
+    }
+    $script:ThemeListCache[$cacheKey] = $themes
+    return $themes
+}
 # Oh My Posh Theme Management Functions
 # =====================================
 
@@ -233,30 +261,12 @@ function Set-OhMyPoshTheme {
     $promptFolder = Join-Path $repoRoot 'prompt'
     $themeConfigFile = Join-Path $repoRoot '.theme-config'
     
-    # Get personal themes
-    $personalThemes = @()
-    if (Test-Path $promptFolder) {
-        $personalThemes = Get-ChildItem -Path $promptFolder -Filter '*.omp.json' | 
-            ForEach-Object { 
-                [PSCustomObject]@{
-                    Name = $_.BaseName
-                    Path = $_.FullName
-                    Type = 'Personal'
-                }
-            }
-    }
-    
-    # Get built-in themes
+    # Get personal themes (with caching)
+    $personalThemes = Get-ThemeList -Folder $promptFolder -Type 'Personal'
+    # Get built-in themes (with caching)
     $builtInThemes = @()
     if ($env:POSH_THEMES_PATH -and (Test-Path $env:POSH_THEMES_PATH)) {
-        $builtInThemes = Get-ChildItem -Path $env:POSH_THEMES_PATH -Filter '*.omp.json' | 
-            ForEach-Object { 
-                [PSCustomObject]@{
-                    Name = $_.BaseName
-                    Path = $_.FullName
-                    Type = 'Built-in'
-                }
-            }
+        $builtInThemes = Get-ThemeList -Folder $env:POSH_THEMES_PATH -Type 'Built-in'
     }
     
     # Filter based on parameters

@@ -8,7 +8,8 @@
 #>
 
 param(
-    [switch]$ThemeOnly
+    [switch]$ThemeOnly,
+    [switch]$NoClearScreen = $false
 )
 
 # Define both profile types we want to link
@@ -19,80 +20,89 @@ $ProfilePaths = @(
 
 $SourcePath = Join-Path -Path $PSScriptRoot -ChildPath 'Profile.ps1'
 
+
+# Helper function to get a list of themes from a folder, with caching
+function Get-ThemeList {
+    param(
+        [string]$Folder,
+        [string]$Type = "Personal",
+        [switch]$ForceRefresh
+    )
+    if (-not $script:ThemeListCache) {
+        $script:ThemeListCache = @{}
+    }
+    $cacheKey = "$Type|$Folder"
+    if (-not $ForceRefresh -and $script:ThemeListCache.ContainsKey($cacheKey)) {
+        return $script:ThemeListCache[$cacheKey]
+    }
+    $themes = @()
+    if (Test-Path $Folder) {
+        $themes = Get-ChildItem -Path $Folder -Filter '*.omp.json' | ForEach-Object {
+            $cleanName = $_.BaseName -replace '\.omp$', ''
+            [PSCustomObject]@{
+                Name = $cleanName
+                Path = $_.FullName
+                Symbol = ""
+                Type = $Type
+            }
+        } | Sort-Object Name
+    }
+    $script:ThemeListCache[$cacheKey] = $themes
+    return $themes
+}
+
 # Function to select Oh My Posh theme
 function Select-OhMyPoshTheme {
-    # Clear screen for better UI experience
-    Clear-Host
-    
+    # Clear screen for better UI experience if not disabled
+    if (-not $NoClearScreen) {
+        Clear-Host
+    }
+
     # Title
     Write-Host ""
     Write-Host " Select Theme" -ForegroundColor Black -BackgroundColor Blue
     Write-Host ""
-    
+
     # Step 1: Select theme source
     $sourceOptions = @(
         [PSCustomObject]@{ Name = "Personal themes"; Value = "personal"; Symbol = "" }
         [PSCustomObject]@{ Name = "Oh My Posh built-in themes"; Value = "builtin"; Symbol = "" }
     )
-    
+
     $selectedSource = Show-InteractiveMenu -Options $sourceOptions -DisplayProperty "Name"
     if (-not $selectedSource) {
         Write-Host "`nTheme selection cancelled." -ForegroundColor Yellow
         return $null
     }
-    
+
     # Get themes based on selection
     $themes = @()
-    
     if ($selectedSource.Value -eq "personal") {
-        # Use only the 'prompt' folder for personal themes
         $ThemeFolder = Join-Path -Path $PSScriptRoot -ChildPath 'prompt'
-        if (Test-Path $ThemeFolder) {
-            $themes = Get-ChildItem -Path $ThemeFolder -Filter '*.omp.json' |
-                ForEach-Object {
-                    # Clean up theme name by removing .omp extension if present
-                    $cleanName = $_.BaseName -replace '\.omp$', ''
-                    [PSCustomObject]@{
-                        Name = $cleanName
-                        Path = $_.FullName
-                        Symbol = ""
-                    }
-                } | Sort-Object Name
-        }
-    }
-    else {
-        # Get built-in themes
+        $themes = Get-ThemeList -Folder $ThemeFolder -Type 'Personal'
+    } else {
         if ($env:POSH_THEMES_PATH -and (Test-Path $env:POSH_THEMES_PATH)) {
-            $themes = Get-ChildItem -Path $env:POSH_THEMES_PATH -Filter '*.omp.json' | 
-                ForEach-Object {
-                    # Clean up theme name by removing .omp extension if present
-                    $cleanName = $_.BaseName -replace '\.omp$', ''
-                    [PSCustomObject]@{
-                        Name = $cleanName
-                        Path = $_.FullName
-                        Symbol = ""
-                    }
-                } | Sort-Object Name
+            $themes = Get-ThemeList -Folder $env:POSH_THEMES_PATH -Type 'Built-in'
         }
     }
-    
+
     if ($themes.Count -eq 0) {
         Write-Host "`nNo themes found in the selected source." -ForegroundColor Yellow
         return $null
     }
-    
+
     # Step 2: Select specific theme
     Clear-Host
     Write-Host ""
     Write-Host " Select Theme" -ForegroundColor Black -BackgroundColor Blue
     Write-Host ""
-    
+
     $selectedTheme = Show-InteractiveMenu -Options $themes -DisplayProperty "Name" -ShowPagination
     if (-not $selectedTheme) {
         Write-Host "`nTheme selection cancelled." -ForegroundColor Yellow
         return $null
     }
-    
+
     Write-Host "`n[OK] Selected theme: $($selectedTheme.Name)" -ForegroundColor Green
     return $selectedTheme.Path
 }
