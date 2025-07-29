@@ -6,8 +6,9 @@ A modern, modular PowerShell-based dotfiles system for Windows 11 that rivals Oh
 
 - **Dynamic Path Resolution**: Works from any folder location - `D:\dotfiles\powershell`, `D:\github\ddieppa\dotfiles\powershell`, or anywhere else[1][2]
 - **Modular Architecture**: Separate files for aliases, modules, PSReadLine settings, and Oh My Posh themes[3][4]
-- **Per-App Alias Management**: Dedicated alias files for Git, .NET, Docker, Node.js, and VS Code Insiders[5][6]
+- **Per-App Alias Management**: Dedicated alias files for Git, .NET, Docker, Node.js, themes, and VS Code Insiders[5][6]
 - **Smart Fallbacks**: Automatic fallback to built-in Oh My Posh themes when custom themes aren't available[7][8]
+- **Interactive Theme Management**: Advanced theme selector with keyboard navigation and visual feedback
 - **OneDrive Compatibility**: Handles OneDrive Documents redirection seamlessly[9][10]
 - **Optional posh-git**: Choose between Oh My Posh's built-in Git support or full posh-git functionality[11]
 - **One-Command Setup**: Single installer script creates symbolic links and installs dependencies[12][13]
@@ -21,11 +22,12 @@ dotfiles/powershell/
 ├── modules/
 │   └── modules.ps1                # Module installer/loader
 ├── aliases/
-│   ├── core.ps1                   # Basic shell aliases
+│   ├── core.ps1                   # Basic shell aliases and Set-SafeAlias function
 │   ├── git.ps1                    # Git shortcuts
 │   ├── dotnet.ps1                 # .NET CLI aliases
 │   ├── docker.ps1                 # Docker & docker-compose
 │   ├── node.ps1                   # Node.js & npm
+│   ├── theme.ps1                  # Oh My Posh theme management
 │   └── vscode.ps1                 # VS Code Insiders integration
 ├── psreadline/
 │   └── bindings.ps1               # Keyboard shortcuts & options
@@ -151,6 +153,32 @@ foreach ($ProfileInfo in $ProfilePaths) {
 
 Instead of one massive alias file, we use dedicated files per tool:
 
+**aliases/core.ps1**
+```powershell
+# Safe alias creation function
+function Set-SafeAlias {
+    param(
+        [string]$Name,
+        [string]$Value,
+        [string]$Description = ""
+    )
+    
+    if (-not (Get-Command $Name -ErrorAction SilentlyContinue)) {
+        Set-Alias -Name $Name -Value $Value -Scope Global -Description $Description
+    }
+}
+
+# Alias management utilities
+function Get-CustomAliases { ... }
+function Test-AliasConflicts { ... }
+function Get-AllAliases { ... }
+
+# Set up alias management aliases
+Set-SafeAlias aliases Get-CustomAliases
+Set-SafeAlias alias-check Test-AliasConflicts
+Set-SafeAlias alias-all Get-AllAliases
+```
+
 **aliases/git.ps1**
 ```powershell
 Set-Alias g   git
@@ -228,9 +256,88 @@ Set-PSReadLineKeyHandler -Key Alt+f -Function ForwardWord
 
 ## 🎨 Oh My Posh Integration
 
-### Theme Selection During Installation
+### Interactive Theme Management
 
-When you run the installer, you'll be presented with a menu to select your preferred Oh My Posh theme:
+The dotfiles include a comprehensive theme management system with an interactive UI:
+
+#### Theme Management Commands
+
+```powershell
+# Interactive theme selector with enhanced UI
+theme                    # Two-step selection: source then theme
+theme -Personal          # Show only personal themes
+theme -BuiltIn           # Show only built-in themes
+
+# Direct operations
+theme -Name "paradox"    # Apply specific theme by name
+theme -List              # List all available themes
+
+# Information
+theme-current            # Show currently active theme with details
+theme-help               # Show comprehensive help
+```
+
+#### Interactive Theme Selector
+
+Run `theme` to launch the interactive theme selector:
+
+```
+ Select Theme Source
+
+  • Personal themes
+    Oh My Posh built-in themes  
+    All themes
+
+  Up/Down Navigate | Enter Select | Esc Cancel
+```
+
+The selector features:
+- **Keyboard Navigation**: Use arrow keys to navigate options
+- **Visual Feedback**: Selected item shown with colored text (Magenta) and bullet (•)
+- **Two-Step Selection**: First choose source (Personal/Built-in/All), then specific theme
+- **Pagination**: Built-in themes are paginated (10 per page) with Left/Right navigation
+- **Smart Filtering**: Filter by theme source to quickly find what you need
+- **Cancel Support**: Press Esc or Q at any time to cancel
+
+### Theme Detection and Configuration
+
+The system uses multiple methods to detect and apply themes:
+
+1. **Configuration File** (`.theme-config`): Themes set via the management functions
+2. **Environment Variable** (`POSH_THEME`): Set by Oh My Posh
+3. **Debug Detection**: Fallback method using Oh My Posh debug output
+
+### Personal vs Built-in Themes
+
+**Personal Themes** (📁):
+- Stored in `prompt/` directory in your dotfiles
+- Custom themes you've created or downloaded
+- Take priority when names conflict with built-in themes
+- Examples: minimal, paradox, powerline, the-unnamed.personal
+
+**Built-in Themes** (🎨):
+- Included with Oh My Posh installation
+- Located in `$env:POSH_THEMES_PATH`
+- Extensive collection of pre-made themes
+- Over 100+ themes available
+
+### Theme Information Display
+
+Running `theme-current` shows detailed theme information:
+
+```
+🎨 Current Oh My Posh Theme
+==========================
+
+Theme:  🎨 paradox
+Type:   Built-in
+Source: Config file (.theme-config)
+Path:   C:\Users\Username\AppData\Local\Programs\oh-my-posh\themes\paradox.omp.json
+```
+
+### Installation Theme Selection
+
+During initial installation (`install.ps1`), you'll be prompted to select a theme:
 
 ```powershell
 Available Oh My Posh themes:
@@ -244,42 +351,36 @@ Available Oh My Posh themes:
 Select a theme (1-4 or 0 to skip):
 ```
 
-The installer will save your selection and configure your profile to use the chosen theme automatically.
-
 ### Changing Themes Later
 
-You can change your theme at any time without re-running the full installation:
+You have multiple options to change themes:
 
 ```powershell
+# Use the interactive theme management (recommended)
+theme
+
+# Use the installer's theme-only mode
 .\install.ps1 -ThemeOnly
+
+# Apply a specific theme directly
+theme -Name "minimal"
 ```
-
-This will show the theme selection menu and update your configuration.
-
-### Available Themes
-
-The repository includes several pre-configured themes:
-
-- **minimal** - A clean, simple theme with basic user, path, and git information
-- **paradox** - A colorful powerline-style theme with diamond shapes and rich colors
-- **powerline** - A classic powerline theme with segment separators and icons
-- **the-unnamed.personal** - Your existing custom theme
 
 ### Manual Theme Configuration
 
-You can also manually set a theme by creating a `.theme-config` file in the powershell directory:
+For advanced users, you can manually set a theme by creating a `.theme-config` file:
 
 ```powershell
 # Set to use the minimal theme
-echo "d:\dotfiles\powershell\propmt\minimal.omp.json" > .theme-config
+echo "d:\dotfiles\powershell\prompt\minimal.omp.json" > .theme-config
 ```
 
-### Theme Configuration System
+### Theme Fallback System
 
 The profile uses a hierarchical approach to theme selection:
 
 1. **Configured theme**: Checks for `.theme-config` file with explicit theme path
-2. **Auto-discovery**: Looks for any `.omp.json` file in `propmt/` or `prompt/` folders  
+2. **Auto-discovery**: Looks for any `.omp.json` file in `prompt/` folder  
 3. **Built-in fallback**: Uses Oh My Posh's built-in 'paradox' theme if no custom themes found
 
 This ensures your profile never breaks even if theme files are missing.
@@ -376,6 +477,11 @@ nrb              # npm run build
 
 # VS Code Insiders
 code .           # Opens current directory in VS Code Insiders
+
+# Theme management
+theme            # Interactive theme selector
+theme-current    # Show current theme information
+theme -List      # List all available themes
 ```
 
 ### Profile Management

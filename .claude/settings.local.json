@@ -1,7 +1,8 @@
 {
   "permissions": {
     "allow": [
-      "Bash(powershell:*)"
+      "Bash(powershell:*)",
+      "WebFetch(domain:ohmyposh.dev)"
     ],
     "deny": []
   }
