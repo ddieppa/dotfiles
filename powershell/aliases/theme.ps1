@@ -373,7 +373,7 @@ function Set-OhMyPoshTheme {
         # Convert themes to format expected by Show-InteractiveMenu
         $menuThemes = $availableThemes | ForEach-Object {
             # Clean up theme name by removing .omp extension if present
-            $cleanName = $_.Name -replace '\.omp$', ''
+            $cleanName = $_.Name -replace '\.omp(\.json)?$', ''
             
             [PSCustomObject]@{
                 Name = $cleanName
