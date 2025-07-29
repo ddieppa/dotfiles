@@ -1,3 +1,9 @@
+# Prevent double execution of this profile
+# This guard ensures the profile script is only loaded once per session.
+# PowerShell can load the profile multiple times in scenarios such as nested sessions, reloading with `. $PROFILE`, or when invoked by other scripts.
+# Without this check, duplicate imports, alias definitions, or event registrations could cause errors or unexpected behavior.
+if ($global:__DOTFILES_PROFILE_LOADED) { return }
+$global:__DOTFILES_PROFILE_LOADED = $true
 # Dynamic Git-backed PowerShell profile
 # Profile Performance Timer
 $ProfileTimer = [System.Diagnostics.Stopwatch]::StartNew()
