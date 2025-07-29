@@ -65,7 +65,7 @@ function Show-InteractiveMenu {
     $pageSize = 10
     $currentPage = 0
     $currentIndex = 0
-    $totalPages = [Math]::Ceiling($Options.Count / $pageSize)
+    $totalPages = [Math]::Ceiling($Options.Count / [double]$pageSize)
     
     # Only display title if provided
     if ($Title) {
@@ -82,7 +82,7 @@ function Show-InteractiveMenu {
         
         # Save cursor position
         $cursorTop = [Console]::CursorTop
-        
+
         # Display options for current page
         for ($i = $startIndex; $i -le $endIndex; $i++) {
             $option = $Options[$i]
@@ -91,31 +91,31 @@ function Show-InteractiveMenu {
             } else { 
                 $option.ToString() 
             }
-            
             $symbol = if ($option.Symbol -and $option.Symbol.Trim()) { "$($option.Symbol) " } else { "" }
-            $relativeIndex = $i - $startIndex
             
             if ($i -eq $selectedIndex) {
-                # Highlighted selection with colored text and bullet
-                Write-Host "  • $symbol$displayText" -ForegroundColor Magenta
+                # Clear the line first, then write the highlighted selection
+                Write-Host ("  ● $symbol$displayText").PadRight(80) -ForegroundColor Magenta
             }
             else {
-                Write-Host "    $symbol$displayText" -ForegroundColor White
+                # Clear the line first, then write the normal selection  
+                Write-Host ("    $symbol$displayText").PadRight(80) -ForegroundColor White
             }
         }
-        
-        # Add empty lines to maintain consistent height
+
+        # Always output exactly $pageSize lines total to maintain consistent layout
         $displayedItems = $endIndex - $startIndex + 1
-        for ($i = $displayedItems; $i -lt $pageSize; $i++) {
-            Write-Host ""
+        $emptyLinesNeeded = $pageSize - $displayedItems
+        for ($i = 0; $i -lt $emptyLinesNeeded; $i++) {
+            Write-Host "".PadRight(80) # Clear remaining lines
         }
-        
+
         # Show pagination info if needed
         if ($ShowPagination -and $totalPages -gt 1) {
             Write-Host ""
             Write-Host "  Page $($page + 1)/$totalPages" -ForegroundColor DarkGray
         }
-        
+
         # Navigation hints
         Write-Host ""
         Write-Host "  Up/Down Navigate" -NoNewline -ForegroundColor DarkGray
@@ -123,7 +123,10 @@ function Show-InteractiveMenu {
             Write-Host " | Left/Right Change page" -NoNewline -ForegroundColor DarkGray
         }
         Write-Host " | Enter Select | Esc Cancel" -ForegroundColor DarkGray
-        
+
+        # Store current bottom position for exit calculations
+        $script:menuBottomPosition = [Console]::CursorTop
+
         # Return cursor to saved position for next update
         [Console]::SetCursorPosition(0, $cursorTop)
     }
@@ -186,18 +189,18 @@ function Show-InteractiveMenu {
             }
             'Enter' {
                 # Move cursor below menu before returning
-                [Console]::SetCursorPosition(0, [Console]::CursorTop + $pageSize + 5)
+                [Console]::SetCursorPosition(0, $script:menuBottomPosition + 1)
                 return $Options[$currentIndex]
             }
             'Escape' {
                 # Move cursor below menu before returning
-                [Console]::SetCursorPosition(0, [Console]::CursorTop + $pageSize + 5)
+                [Console]::SetCursorPosition(0, $script:menuBottomPosition + 1)
                 return $null
             }
             'Q' {
                 if ($key.KeyChar -eq 'q' -or $key.KeyChar -eq 'Q') {
                     # Move cursor below menu before returning
-                    [Console]::SetCursorPosition(0, [Console]::CursorTop + $pageSize + 5)
+                    [Console]::SetCursorPosition(0, $script:menuBottomPosition + 1)
                     return $null
                 }
             }

@@ -12,6 +12,9 @@ param(
     [switch]$NoClearScreen = $false
 )
 
+# Import theme management functions
+. $PSScriptRoot\aliases\theme.ps1
+
 # Define both profile types we want to link
 $ProfilePaths = @(
     @{ Name = "CurrentUserAllHosts"; Path = $PROFILE.CurrentUserAllHosts },
@@ -20,45 +23,14 @@ $ProfilePaths = @(
 
 $SourcePath = Join-Path -Path $PSScriptRoot -ChildPath 'Profile.ps1'
 
-
-# Helper function to get a list of themes from a folder, with caching
-function Get-ThemeList {
-    param(
-        [string]$Folder,
-        [string]$Type = "Personal",
-        [switch]$ForceRefresh
-    )
-    if (-not $script:ThemeListCache) {
-        $script:ThemeListCache = @{}
-    }
-    $cacheKey = "$Type|$Folder"
-    if (-not $ForceRefresh -and $script:ThemeListCache.ContainsKey($cacheKey)) {
-        return $script:ThemeListCache[$cacheKey]
-    }
-    $themes = @()
-    if (Test-Path $Folder) {
-        $themes = Get-ChildItem -Path $Folder -Filter '*.omp.json' | ForEach-Object {
-            $cleanName = $_.BaseName -replace '\.omp$', ''
-            [PSCustomObject]@{
-                Name = $cleanName
-                Path = $_.FullName
-                Symbol = ""
-                Type = $Type
-            }
-        } | Sort-Object Name
-    }
-    $script:ThemeListCache[$cacheKey] = $themes
-    return $themes
-}
-
-# Function to select Oh My Posh theme
+# Function to select Oh My Posh theme using the imported functions
 function Select-OhMyPoshTheme {
     # Clear screen for better UI experience if not disabled
     if (-not $NoClearScreen) {
         Clear-Host
     }
 
-    # Title
+    # Use the imported theme selection logic
     Write-Host ""
     Write-Host " Select Theme" -ForegroundColor Black -BackgroundColor Blue
     Write-Host ""
@@ -75,11 +47,17 @@ function Select-OhMyPoshTheme {
         return $null
     }
 
-    # Get themes based on selection
+    # Get themes based on selection using the imported functions
+    $repoRoot = Get-RepoRoot
+    if (-not $repoRoot) {
+        Write-Error "Could not find dotfiles repository root"
+        return $null
+    }
+    
     $themes = @()
     if ($selectedSource.Value -eq "personal") {
-        $ThemeFolder = Join-Path -Path $PSScriptRoot -ChildPath 'prompt'
-        $themes = Get-ThemeList -Folder $ThemeFolder -Type 'Personal'
+        $promptFolder = Join-Path $repoRoot 'prompt'
+        $themes = Get-ThemeList -Folder $promptFolder -Type 'Personal'
     } else {
         if ($env:POSH_THEMES_PATH -and (Test-Path $env:POSH_THEMES_PATH)) {
             $themes = Get-ThemeList -Folder $env:POSH_THEMES_PATH -Type 'Built-in'
@@ -105,163 +83,6 @@ function Select-OhMyPoshTheme {
 
     Write-Host "`n[OK] Selected theme: $($selectedTheme.Name)" -ForegroundColor Green
     return $selectedTheme.Path
-}
-
-# Helper function for interactive menu with pagination
-function Show-InteractiveMenu {
-    param(
-        [string]$Title,
-        [array]$Options,
-        [string]$DisplayProperty = "Name",
-        [switch]$ShowPagination
-    )
-    
-    if ($Options.Count -eq 0) {
-        return $null
-    }
-    
-    $pageSize = 10
-    $currentPage = 0
-    $currentIndex = 0
-    $totalPages = [Math]::Ceiling($Options.Count / $pageSize)
-    
-    # Only display title if provided
-    if ($Title) {
-        Write-Host $Title -ForegroundColor White
-        Write-Host ("-" * 40) -ForegroundColor DarkGray
-        Write-Host ""
-    }
-    
-    function Show-MenuPage {
-        param($page, $selectedIndex)
-        
-        $startIndex = $page * $pageSize
-        $endIndex = [Math]::Min($startIndex + $pageSize, $Options.Count) - 1
-        
-        # Save cursor position
-        $cursorTop = [Console]::CursorTop
-        
-        # Display options for current page
-        for ($i = $startIndex; $i -le $endIndex; $i++) {
-            $option = $Options[$i]
-            $displayText = if ($DisplayProperty -and $option.$DisplayProperty) { 
-                $option.$DisplayProperty 
-            } else { 
-                $option.ToString() 
-            }
-            
-            $symbol = if ($option.Symbol -and $option.Symbol.Trim()) { "$($option.Symbol) " } else { "" }
-            $relativeIndex = $i - $startIndex
-            
-            if ($i -eq $selectedIndex) {
-                # Highlighted selection
-                Write-Host "  " -NoNewline
-                Write-Host "  ● $symbol$displayText" -ForegroundColor Magenta
-            }
-            else {
-                Write-Host "     $symbol$displayText" -ForegroundColor White
-            }
-        }
-        
-        # Add empty lines to maintain consistent height
-        $displayedItems = $endIndex - $startIndex + 1
-        for ($i = $displayedItems; $i -lt $pageSize; $i++) {
-            Write-Host ""
-        }
-        
-        # Show pagination info if needed
-        if ($ShowPagination -and $totalPages -gt 1) {
-            Write-Host ""
-            Write-Host "  Page $($page + 1)/$totalPages" -ForegroundColor DarkGray
-        }
-        
-        # Navigation hints
-        Write-Host ""
-        Write-Host "  Up/Down Navigate" -NoNewline -ForegroundColor DarkGray
-        if ($ShowPagination -and $totalPages -gt 1) {
-            Write-Host " | Left/Right Change page" -NoNewline -ForegroundColor DarkGray
-        }
-        Write-Host " | Enter Select | Esc Cancel" -ForegroundColor DarkGray
-        
-        # Return cursor to saved position for next update
-        [Console]::SetCursorPosition(0, $cursorTop)
-    }
-    
-    # Initial display
-    Show-MenuPage -page $currentPage -selectedIndex $currentIndex
-    
-    # Navigation loop
-    do {
-        $key = [Console]::ReadKey($true)
-        
-        switch ($key.Key) {
-            'UpArrow' {
-                if ($currentIndex -gt 0) {
-                    $currentIndex--
-                    $newPage = [Math]::Floor($currentIndex / $pageSize)
-                    if ($newPage -ne $currentPage) {
-                        $currentPage = $newPage
-                    }
-                    Show-MenuPage -page $currentPage -selectedIndex $currentIndex
-                }
-            }
-            'DownArrow' {
-                if ($currentIndex -lt ($Options.Count - 1)) {
-                    $currentIndex++
-                    $newPage = [Math]::Floor($currentIndex / $pageSize)
-                    if ($newPage -ne $currentPage) {
-                        $currentPage = $newPage
-                    }
-                    Show-MenuPage -page $currentPage -selectedIndex $currentIndex
-                }
-            }
-            'LeftArrow' {
-                if ($ShowPagination -and $currentPage -gt 0) {
-                    $currentPage--
-                    $currentIndex = $currentPage * $pageSize
-                    Show-MenuPage -page $currentPage -selectedIndex $currentIndex
-                }
-            }
-            'RightArrow' {
-                if ($ShowPagination -and $currentPage -lt ($totalPages - 1)) {
-                    $currentPage++
-                    $currentIndex = $currentPage * $pageSize
-                    Show-MenuPage -page $currentPage -selectedIndex $currentIndex
-                }
-            }
-            'PageUp' {
-                if ($ShowPagination -and $currentPage -gt 0) {
-                    $currentPage--
-                    $currentIndex = $currentPage * $pageSize
-                    Show-MenuPage -page $currentPage -selectedIndex $currentIndex
-                }
-            }
-            'PageDown' {
-                if ($ShowPagination -and $currentPage -lt ($totalPages - 1)) {
-                    $currentPage++
-                    $currentIndex = $currentPage * $pageSize
-                    Show-MenuPage -page $currentPage -selectedIndex $currentIndex
-                }
-            }
-            'Enter' {
-                # Move cursor below menu before returning
-                [Console]::SetCursorPosition(0, [Console]::CursorTop + $pageSize + 5)
-                return $Options[$currentIndex]
-            }
-            'Escape' {
-                # Move cursor below menu before returning
-                [Console]::SetCursorPosition(0, [Console]::CursorTop + $pageSize + 5)
-                return $null
-            }
-            'Q' {
-                if ($key.KeyChar -eq 'q' -or $key.KeyChar -eq 'Q') {
-                    # Move cursor below menu before returning
-                    [Console]::SetCursorPosition(0, [Console]::CursorTop + $pageSize + 5)
-                    return $null
-                }
-            }
-        }
-    } while ($true)
 }
 
 # Handle theme-only mode
