@@ -1,6 +1,26 @@
 # Oh My Posh Theme Management Functions
 # =====================================
 
+function Get-RepoRoot {
+    <#
+    .SYNOPSIS
+        Finds the dotfiles repository root for PowerShell scripts
+    .DESCRIPTION
+        Returns the path to the dotfiles/powershell directory, or $null if not found.
+    #>
+    if (Get-Variable -Name 'RepoRoot' -ErrorAction SilentlyContinue) {
+        return $RepoRoot
+    } else {
+        $possiblePaths = @(
+            "D:\dotfiles\powershell",
+            "C:\dotfiles\powershell",
+            "$env:USERPROFILE\dotfiles\powershell",
+            "$env:USERPROFILE\Documents\dotfiles\powershell"
+        )
+        return $possiblePaths | Where-Object { Test-Path $_ } | Select-Object -First 1
+    }
+}
+
 # Helper function for interactive menu with pagination
 function Show-InteractiveMenu {
     param(
@@ -205,24 +225,11 @@ function Set-OhMyPoshTheme {
     )
     
     # Get repository root
-    $repoRoot = if (Get-Variable -Name 'RepoRoot' -ErrorAction SilentlyContinue) { 
-        $RepoRoot 
-    } else { 
-        # Fallback: try to find the dotfiles directory
-        $possiblePaths = @(
-            "D:\dotfiles\powershell",
-            "C:\dotfiles\powershell",
-            "$env:USERPROFILE\dotfiles\powershell",
-            "$env:USERPROFILE\Documents\dotfiles\powershell"
-        )
-        $possiblePaths | Where-Object { Test-Path $_ } | Select-Object -First 1
-    }
-    
+    $repoRoot = Get-RepoRoot
     if (-not $repoRoot) {
         Write-Error "Could not find dotfiles repository root"
         return
     }
-    
     $promptFolder = Join-Path $repoRoot 'prompt'
     $themeConfigFile = Join-Path $repoRoot '.theme-config'
     
@@ -404,24 +411,11 @@ function Get-OhMyPoshTheme {
     #>
     
     # Get repository root
-    $repoRoot = if (Get-Variable -Name 'RepoRoot' -ErrorAction SilentlyContinue) { 
-        $RepoRoot 
-    } else { 
-        # Fallback: try to find the dotfiles directory
-        $possiblePaths = @(
-            "D:\dotfiles\powershell",
-            "C:\dotfiles\powershell",
-            "$env:USERPROFILE\dotfiles\powershell",
-            "$env:USERPROFILE\Documents\dotfiles\powershell"
-        )
-        $possiblePaths | Where-Object { Test-Path $_ } | Select-Object -First 1
-    }
-    
+    $repoRoot = Get-RepoRoot
     if (-not $repoRoot) {
         Write-Error "Could not find dotfiles repository root"
         return
     }
-    
     $themeConfigFile = Join-Path $repoRoot '.theme-config'
     $promptFolder = Join-Path $repoRoot 'prompt'
     

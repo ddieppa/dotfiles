@@ -45,16 +45,10 @@ function Select-OhMyPoshTheme {
     $themes = @()
     
     if ($selectedSource.Value -eq "personal") {
-        # Try propmt folder first, then prompt folder for backward compatibility
-        $ThemeFolders = @(
-            (Join-Path -Path $PSScriptRoot -ChildPath 'propmt'),
-            (Join-Path -Path $PSScriptRoot -ChildPath 'prompt')
-        )
-        
-        $ThemeFolder = $ThemeFolders | Where-Object { Test-Path $_ } | Select-Object -First 1
-        
-        if ($ThemeFolder -and (Test-Path $ThemeFolder)) {
-            $themes = Get-ChildItem -Path $ThemeFolder -Filter '*.omp.json' | 
+        # Use only the 'prompt' folder for personal themes
+        $ThemeFolder = Join-Path -Path $PSScriptRoot -ChildPath 'prompt'
+        if (Test-Path $ThemeFolder) {
+            $themes = Get-ChildItem -Path $ThemeFolder -Filter '*.omp.json' |
                 ForEach-Object {
                     # Clean up theme name by removing .omp extension if present
                     $cleanName = $_.BaseName -replace '\.omp$', ''
@@ -152,7 +146,7 @@ function Show-InteractiveMenu {
             if ($i -eq $selectedIndex) {
                 # Highlighted selection
                 Write-Host "  " -NoNewline
-                Write-Host " > $symbol$displayText " -ForegroundColor Black -BackgroundColor Magenta
+                Write-Host "  ● $symbol$displayText" -ForegroundColor Magenta
             }
             else {
                 Write-Host "     $symbol$displayText" -ForegroundColor White
