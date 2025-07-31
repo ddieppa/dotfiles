@@ -4,6 +4,7 @@ A modern, modular PowerShell-based dotfiles system for Windows 11 that rivals Oh
 
 ## 🚀 Features
 
+
 - **Dynamic Path Resolution**: Works from any folder location - `D:\dotfiles\powershell`, `D:\github\ddieppa\dotfiles\powershell`, or anywhere else[1][2]
 - **Modular Architecture**: Separate files for aliases, modules, PSReadLine settings, and Oh My Posh themes[3][4]
 - **Per-App Alias Management**: Dedicated alias files for Git, .NET, Docker, Node.js, themes, and VS Code Insiders[5][6]
@@ -12,6 +13,8 @@ A modern, modular PowerShell-based dotfiles system for Windows 11 that rivals Oh
 - **OneDrive Compatibility**: Handles OneDrive Documents redirection seamlessly[9][10]
 - **Optional posh-git**: Choose between Oh My Posh's built-in Git support or full posh-git functionality[11]
 - **One-Command Setup**: Single installer script creates symbolic links and installs dependencies[12][13]
+- **Advanced Performance Optimization**: Implements Microsoft best practices, three-tier caching, lazy loading, and robust error handling for fast startup and reliability. See [Performance Optimization Guide](docs/Performance-Optimization-Guide.md).
+- **Terminal-Icons Robustness**: Handles Terminal-Icons XML errors gracefully; icons work even if XML warnings appear. See [Terminal-Icons Issues and Solutions](docs/Terminal-Icons-Issues.md).
 
 ## 📁 Repository Structure
 
@@ -502,11 +505,25 @@ code $PROFILE    # Edit profile (opens VS Code Insiders)
 | Symlink creation fails | Need admin rights | Enable Developer Mode or run as administrator |
 | Profile path not found | Parent folder missing | Installer creates directory automatically |
 
+### Terminal-Icons Issues and Solutions
+
+If you see XML parsing errors when importing Terminal-Icons (e.g. `'Element' is an invalid XmlNodeType`), these are non-fatal and icons will still display. The profile now suppresses these warnings and provides fallback icons if the module fails. For full troubleshooting and repair steps, see [docs/Terminal-Icons-Issues.md](docs/Terminal-Icons-Issues.md).
+
 ### Performance Tips
 
 1. **Antivirus Exclusions**: Add Oh My Posh binary path to Windows Defender exclusions[17]
 2. **Module Loading**: Heavy modules (Az, AWS) should be lazy-loaded in functions[17][18]
 3. **History Settings**: Use `SaveIncrementally` to prevent exit delays[14]
+
+### Profile Performance Optimization
+
+This profile implements advanced performance optimizations based on Microsoft best practices, including:
+- .NET JIT ProfileOptimization
+- Three-tier caching (paths, commands, module availability)
+- Lazy loading and robust error handling
+- Built-in performance monitoring tools (`perf`, `cache-stats`, `cache-clear`)
+
+For details and tuning, see [docs/Performance-Optimization-Guide.md](docs/Performance-Optimization-Guide.md).
 
 ### Debugging
 
