@@ -14,16 +14,20 @@ A modern, modular PowerShell-based dotfiles system for Windows 11 that rivals Oh
 - **Optional posh-git**: Choose between Oh My Posh's built-in Git support or full posh-git functionality[11]
 - **One-Command Setup**: Single installer script creates symbolic links and installs dependencies[12][13]
 - **Advanced Performance Optimization**: Implements Microsoft best practices, three-tier caching, lazy loading, and robust error handling for fast startup and reliability. See [Performance Optimization Guide](docs/Performance-Optimization-Guide.md).
-- **Terminal-Icons Robustness**: Handles Terminal-Icons XML errors gracefully; icons work even if XML warnings appear. See [Terminal-Icons Issues and Solutions](docs/Terminal-Icons-Issues.md).
+- **VS Code Compatibility**: PSReadLine bindings optimized for VS Code PowerShell extension with graceful fallback for virtual terminal processing limitations.
+- **Terminal-Icons Integration**: Full icon support with automatic fallback system; seamlessly displays file and folder icons in `ls` command with Nerd Font compatibility.
 
 ## 📁 Repository Structure
 
 ```
 dotfiles/powershell/
 ├── Profile.ps1                    # Main orchestrator (symlinked to $PROFILE)
-├── install.ps1                    # Bootstrap script
+├── install.ps1                    # Bootstrap script with theme selection
 ├── modules/
-│   └── modules.ps1                # Module installer/loader
+│   ├── modules.ps1                # Module installer/loader with Terminal-Icons
+│   ├── CacheManagement.psm1       # Performance monitoring utilities
+│   ├── DotfilesModules.psd1      # Module manifest
+│   └── TerminalIconsRepair.psm1  # Terminal-Icons diagnostic tools
 ├── aliases/
 │   ├── core.ps1                   # Basic shell aliases and Set-SafeAlias function
 │   ├── git.ps1                    # Git shortcuts
@@ -33,11 +37,16 @@ dotfiles/powershell/
 │   ├── theme.ps1                  # Oh My Posh theme management
 │   └── vscode.ps1                 # VS Code Insiders integration
 ├── psreadline/
-│   └── bindings.ps1               # Keyboard shortcuts & options
-├── prompt/
-│   └── night-owl.omp.json         # Custom Oh My Posh theme
-└── utilities/                     # Optional helper functions
-    └── helpers.ps1
+│   └── bindings.ps1               # Keyboard shortcuts & options (VS Code compatible)
+├── prompt/                        # Oh My Posh themes
+│   ├── night-owl.omp.json         # Custom dark theme
+│   ├── paradox.omp.json           # Built-in theme (default)
+│   └── [other themes].omp.json
+├── docs/
+│   ├── Performance-Optimization-Guide.md
+│   └── Terminal-Icons-Issues.md   # Legacy troubleshooting (deprecated)
+└── windows_terminal/
+    └── profiles.json              # Pre-configured with Nerd Fonts
 ```
 
 ## 🛠️ Installation
@@ -48,6 +57,20 @@ dotfiles/powershell/
 # Set execution policy (one-time)
 Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser -Force
 ```
+
+### Terminal Configuration (Recommended)
+
+For the best experience with icons and colors:
+
+1. **Install a Nerd Font**: Download and install a Nerd Font from [Nerd Fonts](https://www.nerdfonts.com/). Popular choices:
+   - Cascadia Code PL (recommended - already configured in Windows Terminal settings)
+   - MesloLGL Nerd Font
+   - FiraCode Nerd Font
+
+2. **Configure Windows Terminal**: The included `windows_terminal/profiles.json` is pre-configured with:
+   - Cascadia Code PL font for icon support
+   - Optimized color schemes
+   - Custom keybindings
 
 ### Quick Start
 
@@ -71,8 +94,9 @@ Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser -Force
 ```
 
 The installer will:
-- Install required modules (PSReadLine, Terminal-Icons, Oh My Posh)[14][11]
+- Install and configure required modules (PSReadLine, Terminal-Icons, Oh My Posh)[14][11]
 - **Create symbolic links for _both_ `$PROFILE.CurrentUserAllHosts` (`profile.ps1`) _and_ `$PROFILE.CurrentUserCurrentHost` (`Microsoft.PowerShell_profile.ps1`) to your repo's `Profile.ps1`**. This ensures your profile loads correctly in all PowerShell hosts and matches the default `$PROFILE` location.
+- Configure Windows Terminal with Nerd Fonts for icon support
 - Handle OneDrive Documents redirection automatically[9]
 - Backup any existing profile safely
 
@@ -481,6 +505,9 @@ nrb              # npm run build
 # VS Code Insiders
 code .           # Opens current directory in VS Code Insiders
 
+# Directory listing with icons
+ls               # Show files and folders with icons (requires Nerd Font)
+
 # Theme management
 theme            # Interactive theme selector
 theme-current    # Show current theme information
@@ -505,9 +532,16 @@ code $PROFILE    # Edit profile (opens VS Code Insiders)
 | Symlink creation fails | Need admin rights | Enable Developer Mode or run as administrator |
 | Profile path not found | Parent folder missing | Installer creates directory automatically |
 
-### Terminal-Icons Issues and Solutions
+### Icon Display Issues
 
-If you see XML parsing errors when importing Terminal-Icons (e.g. `'Element' is an invalid XmlNodeType`), these are non-fatal and icons will still display. The profile now suppresses these warnings and provides fallback icons if the module fails. For full troubleshooting and repair steps, see [docs/Terminal-Icons-Issues.md](docs/Terminal-Icons-Issues.md).
+If icons don't appear in your terminal:
+
+1. **Verify Nerd Font Installation**: Ensure you have a Nerd Font installed and configured in your terminal
+2. **Check Terminal Settings**: Confirm your terminal is using the Nerd Font (Cascadia Code PL is pre-configured)
+3. **Restart Terminal**: Font changes require a terminal restart to take effect
+4. **Test with `ls`**: The `ls` command should display icons for files and folders
+
+**Note**: The fallback `lsi` command always works regardless of font configuration.
 
 ### Performance Tips
 
