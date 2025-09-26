@@ -122,7 +122,7 @@ if (-not $Global:__ProfileCache.ContainsKey($psGalleryKey) -or
 $requiredModules = @{
     # Essential modules - load immediately
     Immediate = @(
-        'Terminal-Icons'
+        'Terminal-Icons'  # Now working properly after fresh install
     )
     # Git-related modules - load on demand
     OnDemand = @(
@@ -199,6 +199,42 @@ foreach ($moduleName in $requiredModules.Immediate) {
     } catch {
         Write-Warning "Failed to process module $moduleName : $_"
     }
+}
+
+# Always ensure icon fallback is available
+if (-not (Get-Alias lsi -ErrorAction SilentlyContinue)) {
+    Write-Host "    Ensuring icon fallback is available..." -ForegroundColor DarkGray
+    function global:Get-ChildItemPretty {
+        [CmdletBinding()]
+        param(
+            [Parameter(ValueFromPipeline = $true, Position = 0)]
+            [string]$Path = ".",
+            [switch]$Force,
+            [switch]$Recurse
+        )
+        $params = @{ Path = $Path }
+        if ($Force) { $params.Force = $true }
+        if ($Recurse) { $params.Recurse = $true }
+        Get-ChildItem @params | ForEach-Object {
+            $icon = if ($_.PSIsContainer) { "📁" }
+                   elseif ($_.Extension -eq ".ps1") { "📜" }
+                   elseif ($_.Extension -in @(".txt", ".md", ".log")) { "📄" }
+                   elseif ($_.Extension -in @(".jpg", ".png", ".gif", ".bmp")) { "🖼️" }
+                   elseif ($_.Extension -in @(".mp3", ".wav", ".mp4", ".avi")) { "🎵" }
+                   elseif ($_.Extension -in @(".zip", ".rar", ".7z")) { "📦" }
+                   elseif ($_.Extension -in @(".exe", ".msi")) { "⚙️" }
+                   else { "📄" }
+            [PSCustomObject]@{
+                Icon = $icon
+                Name = $_.Name
+                Length = if ($_.PSIsContainer) { "" } else { $_.Length }
+                LastWriteTime = $_.LastWriteTime
+                FullName = $_.FullName
+            }
+        }
+    }
+    Set-Alias -Name lsi -Value Get-ChildItemPretty -Scope Global -ErrorAction SilentlyContinue
+    Write-Host "    ✓ Icon fallback ready (use 'lsi' for icons)" -ForegroundColor Green
 }
 
 # Set up lazy loading for on-demand modules
