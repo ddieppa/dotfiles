@@ -194,5 +194,6 @@ $ohMyPoshTimer.Stop()
 
 # Export functions for profile use (following PowerShell best practices)
 if (Get-Command Export-ModuleMember -ErrorAction SilentlyContinue) {
-    Export-ModuleMember -Function Test-ModuleAvailable, Install-ModuleIfMissing, Import-ModuleWithTimer
+    # Note: Export-ModuleMember is not valid in .ps1 files and has been removed.
+    # The functions are already available in the global scope where this script is dot-sourced.
 }
