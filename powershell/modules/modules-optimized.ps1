@@ -142,63 +142,9 @@ foreach ($category in $requiredModules.Keys) {
     }
 }
 
-# Import immediate modules with better error handling
+# Import immediate modules
 foreach ($moduleName in $requiredModules.Immediate) {
-    try {
-        # Special handling for Terminal-Icons which can have XML issues
-        if ($moduleName -eq 'Terminal-Icons') {
-            Write-Host "    Importing Terminal-Icons..." -ForegroundColor DarkGray
-            $moduleTimer = [System.Diagnostics.Stopwatch]::StartNew()
-            try {
-                Import-Module Terminal-Icons -DisableNameChecking -Force -ErrorAction Stop 2>$null
-                if (Get-Module Terminal-Icons) {
-                    Write-Host "    ✓ Terminal-Icons loaded ($($moduleTimer.ElapsedMilliseconds)ms)" -ForegroundColor DarkGreen
-                } else {
-                    throw "Module failed to load properly"
-                }
-            } catch {
-                Write-Host "    ✗ Terminal-Icons failed to load: $($_.Exception.Message)" -ForegroundColor Red
-                Write-Host "    📁 Setting up basic icon fallback..." -ForegroundColor Yellow
-                # Create a basic icon fallback function
-                function global:Get-ChildItemPretty {
-                    [CmdletBinding()]
-                    param(
-                        [Parameter(ValueFromPipeline = $true, Position = 0)]
-                        [string]$Path = ".",
-                        [switch]$Force,
-                        [switch]$Recurse
-                    )
-                    $params = @{ Path = $Path }
-                    if ($Force) { $params.Force = $true }
-                    if ($Recurse) { $params.Recurse = $true }
-                    Get-ChildItem @params | ForEach-Object {
-                        $icon = if ($_.PSIsContainer) { "📁" }
-                               elseif ($_.Extension -eq ".ps1") { "📜" }
-                               elseif ($_.Extension -in @(".txt", ".md", ".log")) { "📄" }
-                               elseif ($_.Extension -in @(".jpg", ".png", ".gif", ".bmp")) { "🖼️" }
-                               elseif ($_.Extension -in @(".mp3", ".wav", ".mp4", ".avi")) { "🎵" }
-                               elseif ($_.Extension -in @(".zip", ".rar", ".7z")) { "📦" }
-                               elseif ($_.Extension -in @(".exe", ".msi")) { "⚙️" }
-                               else { "📄" }
-                        [PSCustomObject]@{
-                            Icon = $icon
-                            Name = $_.Name
-                            Length = if ($_.PSIsContainer) { "" } else { $_.Length }
-                            LastWriteTime = $_.LastWriteTime
-                            FullName = $_.FullName
-                        }
-                    }
-                }
-                Set-Alias -Name lsi -Value Get-ChildItemPretty -Scope Global -ErrorAction SilentlyContinue
-                Write-Host "    ✓ Basic icon fallback configured (use 'lsi' for icons)" -ForegroundColor Green
-            }
-            $moduleTimer.Stop()
-        } else {
-            Import-ModuleWithTimer -ModuleName $moduleName | Out-Null
-        }
-    } catch {
-        Write-Warning "Failed to process module $moduleName : $_"
-    }
+    Import-ModuleWithTimer -ModuleName $moduleName | Out-Null
 }
 
 # Set up lazy loading for on-demand modules
@@ -246,5 +192,8 @@ if (-not $ohMyPoshAvailable) {
 }
 $ohMyPoshTimer.Stop()
 
-# Note: Export-ModuleMember is not used here since this is a script (.ps1), not a module (.psm1)
-# The functions are already available in the global scope where this script is dot-sourced
+# Export functions for profile use (following PowerShell best practices)
+if (Get-Command Export-ModuleMember -ErrorAction SilentlyContinue) {
+    # Note: Export-ModuleMember is not valid in .ps1 files and has been removed.
+    # The functions are already available in the global scope where this script is dot-sourced.
+}
