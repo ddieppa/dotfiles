@@ -156,37 +156,37 @@ if ($HostSupportsColor) {
 }
 
 # 1. Modules with lazy loading and manifest optimization ----------------
-if ($HostSupportsColor) { Write-Host "  Loading modules..." -ForegroundColor Yellow }
-else { Write-Host "  Loading modules..." }
-$ProfileTimer.Restart()
+# Reduced verbose output for faster loading - detailed output available via 'perf' command
+$modulesTimer = [System.Diagnostics.Stopwatch]::StartNew()
 
 try {
     # Check if modules.ps1 exists before loading
     $modulesPath = Join 'modules\modules.ps1'
     if (Test-CachedPath $modulesPath) {
         . $modulesPath
-        if ($HostSupportsColor) { Write-Host "  Modules loaded ($(${ProfileTimer}.ElapsedMilliseconds)ms)" -ForegroundColor Green }
-        else { Write-Host "  Modules loaded ($(${ProfileTimer}.ElapsedMilliseconds)ms)" }
+        $modulesLoadTime = $modulesTimer.ElapsedMilliseconds
+        if ($HostSupportsColor -and $modulesLoadTime -gt 500) {
+            Write-Host "  Modules loaded ($modulesLoadTime"ms")" -ForegroundColor Green
+        }
     } else {
         if ($HostSupportsColor) { Write-Host "  modules.ps1 not found, skipping" -ForegroundColor Yellow }
         else { Write-Host "  modules.ps1 not found, skipping" }
     }
 } catch {
     Write-Warning "Failed to load modules: $_"
+} finally {
+    $modulesTimer.Stop()
 }
 
 # 2. Aliases with improved file loading and caching -------------------
-if ($HostSupportsColor) { Write-Host "  Loading core aliases..." -ForegroundColor Yellow }
-else { Write-Host "  Loading core aliases..." }
-$ProfileTimer.Restart()
+# Optimized loading with reduced verbose output for better performance
+$aliasesTimer = [System.Diagnostics.Stopwatch]::StartNew()
 
 try {
     # Load core.ps1 first (contains Set-SafeAlias function)
     $coreAliasPath = Join 'aliases\core.ps1'
     if (Test-CachedPath $coreAliasPath) {
         . $coreAliasPath
-        if ($HostSupportsColor) { Write-Host "  Core aliases loaded ($(${ProfileTimer}.ElapsedMilliseconds)ms)" -ForegroundColor Green }
-        else { Write-Host "  Core aliases loaded ($(${ProfileTimer}.ElapsedMilliseconds)ms)" }
     } else {
         if ($HostSupportsColor) { Write-Host "  core.ps1 not found, skipping" -ForegroundColor Yellow }
         else { Write-Host "  core.ps1 not found, skipping" }
@@ -195,81 +195,102 @@ try {
     Write-Warning "Failed to load core aliases: $_"
 }
 
-if ($HostSupportsColor) { Write-Host "  Loading additional aliases..." -ForegroundColor Yellow }
-else { Write-Host "  Loading additional aliases..." }
-$ProfileTimer.Restart()
-
 try {
-    # Load other alias files - optimized with caching and parallel loading
+    # Load other alias files - optimized with caching
     $aliasFolder = Join 'aliases'
     if (Test-CachedPath $aliasFolder) {
         # Use cached file list if available
         $cacheKey = "AliasFiles_$aliasFolder"
         $aliasFiles = $null
-        
+
         if ($Global:__ProfileCache.ContainsKey($cacheKey)) {
             $cachedResult = $Global:__ProfileCache[$cacheKey]
             if ((Get-Date) - $cachedResult.Time -lt [TimeSpan]::FromMinutes(10)) {
                 $aliasFiles = $cachedResult.Result
             }
         }
-        
+
         if (-not $aliasFiles) {
             $aliasFiles = Get-ChildItem $aliasFolder -Filter '*.ps1' -ErrorAction SilentlyContinue |
                           Where-Object { $_.Name -ne 'core.ps1' }
             $Global:__ProfileCache[$cacheKey] = @{ Result = $aliasFiles; Time = Get-Date }
         }
-        
-        # Load files efficiently
-        foreach ($file in $aliasFiles) { 
+
+        # Load files efficiently (verbose output removed for performance)
+        foreach ($file in $aliasFiles) {
             try {
-                if ($HostSupportsColor) { Write-Host "    Loading $($file.Name)..." -ForegroundColor DarkGray }
-                else { Write-Host "    Loading $($file.Name)..." }
-                . $file.FullName 
+                . $file.FullName
             } catch {
                 Write-Warning "Failed to load $($file.Name): $_"
             }
         }
-        
-        if ($HostSupportsColor) { Write-Host "  Additional aliases loaded ($(${ProfileTimer}.ElapsedMilliseconds)ms)" -ForegroundColor Green }
-        else { Write-Host "  Additional aliases loaded ($(${ProfileTimer}.ElapsedMilliseconds)ms)" }
+
+        $aliasesLoadTime = $aliasesTimer.ElapsedMilliseconds
+        if ($HostSupportsColor -and $aliasesLoadTime -gt 100) {
+            Write-Host "  Aliases loaded ($aliasesLoadTime"ms")" -ForegroundColor Green
+        }
     } else {
         if ($HostSupportsColor) { Write-Host "  aliases folder not found, skipping" -ForegroundColor Yellow }
         else { Write-Host "  aliases folder not found, skipping" }
     }
 } catch {
     Write-Warning "Failed to load additional aliases: $_"
+} finally {
+    $aliasesTimer.Stop()
 }
 
-# 3. PSReadLine bindings with conditional loading ----------------------
-if ($HostSupportsColor) { Write-Host "  Loading PSReadLine bindings..." -ForegroundColor Yellow }
-else { Write-Host "  Loading PSReadLine bindings..." }
-$ProfileTimer.Restart()
+# 3. PSReadLine bindings with lazy loading and conditional optimization ----------------------
+# PSReadLine bindings are now lazy-loaded to improve startup performance
+# They will be loaded automatically when first PSReadLine command is used
+$Global:__PSReadLineBindingsLoaded = $false
 
-try {
-    # Only load PSReadLine bindings if PSReadLine is available
-    if (Test-CachedCommand 'Set-PSReadLineOption') {
-        $bindingsPath = Join 'psreadline\bindings.ps1'
-        if (Test-CachedPath $bindingsPath) {
-            . $bindingsPath
-            if ($HostSupportsColor) { Write-Host "  PSReadLine bindings loaded ($(${ProfileTimer}.ElapsedMilliseconds)ms)" -ForegroundColor Green }
-            else { Write-Host "  PSReadLine bindings loaded ($(${ProfileTimer}.ElapsedMilliseconds)ms)" }
-        } else {
-            if ($HostSupportsColor) { Write-Host "  bindings.ps1 not found, skipping" -ForegroundColor Yellow }
-            else { Write-Host "  bindings.ps1 not found, skipping" }
+function Load-PSReadLineBindings {
+    if (-not $Global:__PSReadLineBindingsLoaded) {
+        $bindingTimer = [System.Diagnostics.Stopwatch]::StartNew()
+
+        try {
+            # Only load PSReadLine bindings if PSReadLine is available
+            if (Test-CachedCommand 'Set-PSReadLineOption') {
+                $bindingsPath = Join 'psreadline\bindings.ps1'
+                if (Test-CachedPath $bindingsPath) {
+                    . $bindingsPath
+                    $Global:__PSReadLineBindingsLoaded = $true
+                    if ($HostSupportsColor) {
+                        Write-Host "  PSReadLine bindings loaded on-demand ($(${bindingTimer}.ElapsedMilliseconds)ms)" -ForegroundColor Green
+                    } else {
+                        Write-Host "  PSReadLine bindings loaded on-demand ($(${bindingTimer}.ElapsedMilliseconds)ms)"
+                    }
+                }
+            }
+        } catch {
+            Write-Warning "Failed to load PSReadLine bindings: $_"
+        } finally {
+            $bindingTimer.Stop()
         }
-    } else {
-        if ($HostSupportsColor) { Write-Host "  PSReadLine not available, skipping bindings" -ForegroundColor Yellow }
-        else { Write-Host "  PSReadLine not available, skipping bindings" }
     }
-} catch {
-    Write-Warning "Failed to load PSReadLine bindings: $_"
 }
 
-# 4. Prompt with enhanced caching and lazy loading ---------------------
-if ($HostSupportsColor) { Write-Host "  Loading Oh My Posh theme..." -ForegroundColor Yellow }
-else { Write-Host "  Loading Oh My Posh theme..." }
-$ProfileTimer.Restart()
+# Register PSReadLine bindings to load on first use
+$ExecutionContext.SessionState.InvokeCommand.CommandNotFoundAction = {
+    param($CommandName, $CommandLookupEventArgs)
+
+    # Load PSReadLine bindings if any PSReadLine command is called
+    if ($CommandName -like "*PSReadLine*" -or $CommandName -in @('Set-PSReadLineOption', 'Get-PSReadLineOption', 'Set-PSReadLineKeyHandler')) {
+        Load-PSReadLineBindings
+    }
+}
+
+# Load bindings immediately if PSReadLine is already available and we're in an interactive context
+if ((Test-CachedCommand 'Set-PSReadLineOption') -and ($Host.Name -eq 'ConsoleHost' -or $Host.Name -like '*Visual Studio*')) {
+    Load-PSReadLineBindings
+} else {
+    if ($HostSupportsColor) { Write-Host "  PSReadLine bindings deferred (lazy loading)" -ForegroundColor DarkGray }
+    else { Write-Host "  PSReadLine bindings deferred (lazy loading)" }
+}
+
+# 4. Prompt with enhanced caching and optimized loading ---------------------
+# Optimized theme loading with reduced verbose output for better performance
+$promptTimer = [System.Diagnostics.Stopwatch]::StartNew()
 
 try {
     # Only proceed if oh-my-posh is available
@@ -277,26 +298,24 @@ try {
         # Look for theme configuration file first with caching
         $ThemeConfigFile = Join '.theme-config'
         $SelectedThemeFile = $null
-        
-        # Cache theme configuration lookup
+
+        # Cache theme configuration lookup (extended cache time for better performance)
         $cacheKey = "ThemeConfig_$ThemeConfigFile"
         if ($Global:__ProfileCache.ContainsKey($cacheKey)) {
             $cachedResult = $Global:__ProfileCache[$cacheKey]
-            if ((Get-Date) - $cachedResult.Time -lt [TimeSpan]::FromMinutes(15)) {
+            if ((Get-Date) - $cachedResult.Time -lt [TimeSpan]::FromMinutes(30)) {
                 $SelectedThemeFile = $cachedResult.Result
             }
         }
-        
+
         if (-not $SelectedThemeFile) {
             if (Test-CachedPath $ThemeConfigFile) {
                 $configContent = Get-Content $ThemeConfigFile -Raw -ErrorAction SilentlyContinue | ForEach-Object { $_.Trim() }
                 if ($configContent -and (Test-CachedPath $configContent)) {
                     $SelectedThemeFile = $configContent
-                    if ($HostSupportsColor) { Write-Host "  Using configured theme: $(Split-Path $SelectedThemeFile -Leaf)" -ForegroundColor Gray }
-                    else { Write-Host "  Using configured theme: $(Split-Path $SelectedThemeFile -Leaf)" }
                 }
             }
-            
+
             # If no configured theme, look for any theme in prompt folder
             if (-not $SelectedThemeFile) {
                 $ThemeFolder = Join 'prompt'
@@ -304,34 +323,29 @@ try {
                     $AvailableThemes = Get-ChildItem -Path $ThemeFolder -Filter '*.omp.json' -ErrorAction SilentlyContinue | Select-Object -First 1
                     if ($AvailableThemes) {
                         $SelectedThemeFile = $AvailableThemes.FullName
-                        if ($HostSupportsColor) { Write-Host "  Using first available theme: $($AvailableThemes.Name) from prompt" -ForegroundColor Gray }
-                        else { Write-Host "  Using first available theme: $($AvailableThemes.Name) from prompt" }
                     }
                 }
             }
-            
-            # Cache the result
+
+            # Cache the result (extended cache time)
             $Global:__ProfileCache[$cacheKey] = @{ Result = $SelectedThemeFile; Time = Get-Date }
         }
 
         # Final fallback to built-in theme
-        $Config = if ($SelectedThemeFile -and (Test-CachedPath $SelectedThemeFile)) { 
-            $SelectedThemeFile 
-        } else { 
-            if ($HostSupportsColor) { Write-Host "  No custom themes found, using built-in 'paradox'" -ForegroundColor Yellow }
-            else { Write-Host "  No custom themes found, using built-in 'paradox'" }
-            'paradox' 
+        $Config = if ($SelectedThemeFile -and (Test-CachedPath $SelectedThemeFile)) {
+            $SelectedThemeFile
+        } else {
+            'paradox'
         }
 
-        # Initialize oh-my-posh with error handling
+        # Initialize oh-my-posh with error handling (suppressed verbose output)
         $ohMyPoshInit = oh-my-posh init pwsh --config $Config 2>$null
         if ($ohMyPoshInit) {
             Invoke-Expression $ohMyPoshInit
-            if ($HostSupportsColor) { Write-Host "  Oh My Posh theme loaded ($(${ProfileTimer}.ElapsedMilliseconds)ms)" -ForegroundColor Green }
-            else { Write-Host "  Oh My Posh theme loaded ($(${ProfileTimer}.ElapsedMilliseconds)ms)" }
-        } else {
-            if ($HostSupportsColor) { Write-Host "  Failed to initialize Oh My Posh theme" -ForegroundColor Yellow }
-            else { Write-Host "  Failed to initialize Oh My Posh theme" }
+            $promptLoadTime = $promptTimer.ElapsedMilliseconds
+            if ($HostSupportsColor -and $promptLoadTime -gt 200) {
+                Write-Host "  Oh My Posh theme loaded ($promptLoadTime"ms")" -ForegroundColor Green
+            }
         }
     } else {
         if ($HostSupportsColor) { Write-Host "  oh-my-posh not available, using default prompt" -ForegroundColor Yellow }
@@ -339,19 +353,20 @@ try {
     }
 } catch {
     Write-Warning "Failed to load Oh My Posh theme: $_"
+} finally {
+    $promptTimer.Stop()
 }
 
-# 5. Advanced lazy-load posh-git with background job support -----------
-if ($HostSupportsColor) { Write-Host "  Setting up posh-git lazy loading..." -ForegroundColor Yellow }
-else { Write-Host "  Setting up posh-git lazy loading..." }
-$ProfileTimer.Restart()
+# 5. Advanced lazy-load posh-git with optimized setup -----------
+# Optimized posh-git setup with reduced verbose output for better performance
+$gitTimer = [System.Diagnostics.Stopwatch]::StartNew()
 
 try {
     # Only set up posh-git if git is available
     if (Test-CachedCommand 'git') {
         # Enhanced lazy loading with background job support and caching
         $Global:__PoshGitLoaded = $false
-        
+
         # Function to load posh-git in background
         function Import-PoshGitAsync {
             if (-not $Global:__PoshGitLoaded -and -not (Get-Module posh-git)) {
@@ -359,7 +374,7 @@ try {
                     # Check if we're in a git repository (cached)
                     $isGitRepo = $false
                     $gitCheckKey = "GitRepo_$PWD"
-                    
+
                     if ($Global:__ProfileCache.PathTests.ContainsKey($gitCheckKey)) {
                         $cachedResult = $Global:__ProfileCache.PathTests[$gitCheckKey]
                         if ((Get-Date) - $cachedResult.Time -lt [TimeSpan]::FromMinutes(2)) {
@@ -368,12 +383,12 @@ try {
                             $Global:__ProfileCache.PathTests.Remove($gitCheckKey)
                         }
                     }
-                    
+
                     if (-not $Global:__ProfileCache.PathTests.ContainsKey($gitCheckKey)) {
                         $isGitRepo = Test-Path .git -ErrorAction SilentlyContinue
                         $Global:__ProfileCache.PathTests[$gitCheckKey] = @{ Result = $isGitRepo; Time = Get-Date }
                     }
-                    
+
                     if ($isGitRepo) {
                         Import-Module posh-git -DisableNameChecking -ErrorAction SilentlyContinue
                         $Global:__PoshGitLoaded = $true
@@ -383,25 +398,29 @@ try {
                 }
             }
         }
-        
+
         # Register multiple triggers for posh-git loading
         Register-EngineEvent PowerShell.OnIdle -SupportEvent -Action {
             Import-PoshGitAsync
         } | Out-Null
-        
+
         # Also load on location change
         $ExecutionContext.SessionState.InvokeCommand.LocationChangedAction = {
             Import-PoshGitAsync
         }
-        
-        if ($HostSupportsColor) { Write-Host "  Enhanced posh-git lazy loading configured ($(${ProfileTimer}.ElapsedMilliseconds)ms)" -ForegroundColor Green }
-        else { Write-Host "  Enhanced posh-git lazy loading configured ($(${ProfileTimer}.ElapsedMilliseconds)ms)" }
+
+        $gitSetupTime = $gitTimer.ElapsedMilliseconds
+        if ($HostSupportsColor -and $gitSetupTime -gt 50) {
+            Write-Host "  posh-git lazy loading configured ($gitSetupTime"ms")" -ForegroundColor Green
+        }
     } else {
         if ($HostSupportsColor) { Write-Host "  Git not available, skipping posh-git setup" -ForegroundColor Yellow }
         else { Write-Host "  Git not available, skipping posh-git setup" }
     }
 } catch {
     Write-Warning "Failed to configure posh-git lazy loading: $_"
+} finally {
+    $gitTimer.Stop()
 }
 
 # 6. Quality-of-Life with performance monitoring ----------------------
@@ -576,16 +595,17 @@ try {
     Write-Warning "Failed to load quality-of-life functions: $_"
 }
 
-# Profile loading complete with cache cleanup
+# Profile loading complete with optimized summary
 $ProfileTimer.Stop()
+$totalLoadTime = $ProfileTimer.ElapsedMilliseconds
 
-# Cache maintenance - cleanup old entries to prevent memory bloat
+# Enhanced cache maintenance - cleanup old entries to prevent memory bloat
 try {
     $cutoffTime = (Get-Date).AddMinutes(-30)
     @('PathTests', 'CommandTests', 'ModuleAvailability') | ForEach-Object {
         $cache = $Global:__ProfileCache[$_]
-        $keysToRemove = $cache.Keys | Where-Object { 
-            $cache[$_].Time -lt $cutoffTime 
+        $keysToRemove = $cache.Keys | Where-Object {
+            $cache[$_].Time -lt $cutoffTime
         }
         $keysToRemove | ForEach-Object { $cache.Remove($_) }
     }
@@ -593,17 +613,24 @@ try {
     # Silently continue if cache cleanup fails
 }
 
-if ($HostSupportsColor) { 
-    Write-Host "Profile loading complete! Total time: $($ProfileTimer.ElapsedMilliseconds)ms" -ForegroundColor Cyan
-    Write-Host "PowerShell $($PSVersionTable.PSVersion) | $($PSVersionTable.PSEdition) Edition" -ForegroundColor Gray
-    if ($Global:__ProfileCache.PathTests.Count + $Global:__ProfileCache.CommandTests.Count -gt 0) {
-        Write-Host "Cache entries: $($Global:__ProfileCache.PathTests.Count + $Global:__ProfileCache.CommandTests.Count) items" -ForegroundColor Gray
+# Optimized summary output - only show if load time is significant
+if ($HostSupportsColor) {
+    if ($totalLoadTime -gt 1000) {
+        Write-Host "Profile loading complete! Total time: $($totalLoadTime)ms" -ForegroundColor Cyan
+        Write-Host "PowerShell $($PSVersionTable.PSVersion) | $($PSVersionTable.PSEdition) Edition" -ForegroundColor Gray
+        $cacheCount = $Global:__ProfileCache.PathTests.Count + $Global:__ProfileCache.CommandTests.Count
+        if ($cacheCount -gt 0) {
+            Write-Host "Cache entries: $cacheCount items" -ForegroundColor Gray
+        }
     }
-} else { 
-    Write-Host "Profile loading complete! Total time: $($ProfileTimer.ElapsedMilliseconds)ms"
-    Write-Host "PowerShell $($PSVersionTable.PSVersion) | $($PSVersionTable.PSEdition) Edition"
-    if ($Global:__ProfileCache.PathTests.Count + $Global:__ProfileCache.CommandTests.Count -gt 0) {
-        Write-Host "Cache entries: $($Global:__ProfileCache.PathTests.Count + $Global:__ProfileCache.CommandTests.Count) items"
+} else {
+    if ($totalLoadTime -gt 1000) {
+        Write-Host "Profile loading complete! Total time: $($totalLoadTime)ms"
+        Write-Host "PowerShell $($PSVersionTable.PSVersion) | $($PSVersionTable.PSEdition) Edition"
+        $cacheCount = $Global:__ProfileCache.PathTests.Count + $Global:__ProfileCache.CommandTests.Count
+        if ($cacheCount -gt 0) {
+            Write-Host "Cache entries: $cacheCount items"
+        }
     }
 }
 
