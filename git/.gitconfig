@@ -1,5 +1,34 @@
-[alias]
+[init]
+    defaultBranch = main
 
+[core]
+    editor = code-insiders --wait
+    autocrlf = input
+    symlinks = false
+    longpaths = true
+    safecrlf = warn
+    excludesfile = ~/.gitignore
+
+[includeIf "gitdir/i:D:/work/"]
+    path = ~/.gitconfig-work
+
+[includeIf "gitdir/i:D:/personal/"]
+    path = ~/.gitconfig-personal
+
+[pull]
+    rebase = true
+
+[push]
+    autoSetupRemote = true
+    default = simple
+
+[fetch]
+    prune = true
+
+[credential]
+    helper = manager
+
+[alias]
     a   = commit --amend
     br  = branch
     c   = commit
@@ -19,7 +48,7 @@
     w   = instaweb --httpd=webrick              # Start web-based visualizer.
 
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-
+# 
     # Find commits by source code.
 
     cc = "!f() { \
