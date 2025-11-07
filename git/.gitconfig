@@ -23,6 +23,7 @@
 [push]
     autoSetupRemote = true
     default = simple
+    followTags = true
 
 [fetch]
     prune = true
@@ -193,12 +194,6 @@
     #                     └─ hash (abbreviated)
 
 
-[push]
-
-    # Make `git push` automatically push relevant
-    # annotated tags when pushing branches out.
-
-    followTags = true
 
 [user]
 
