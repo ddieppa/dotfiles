@@ -2,12 +2,14 @@
     defaultBranch = main
 
 [core]
-    editor = code-insiders --wait
+    abbrev = 12
+    attributesfile = ~/.gitattributes
     autocrlf = input
-    symlinks = false
+    editor = code-insiders --wait
+    excludesfile = ~/.gitignore
     longpaths = true
     safecrlf = warn
-    excludesfile = ~/.gitignore
+    symlinks = false
 
 [includeIf "gitdir/i:D:/work/"]
     path = ~/.gitconfig-work
@@ -165,14 +167,6 @@
     added = green reverse
     changed = yellow reverse
     untracked = red reverse
-
-[core]
-
-    abbrev = 12
-    attributesfile = ~/.gitattributes
-    autocrlf = input
-    editor = vim
-    excludesfile = ~/.gitignore
 
 [diff]
 
