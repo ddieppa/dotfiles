@@ -1,0 +1,6 @@
+[user]
+    name = Your Personal Name
+    email = your.personal@email.com
+
+[core]
+    sshCommand = "C:/Users/YourUsername/.ssh/id_personal"

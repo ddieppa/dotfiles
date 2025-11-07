@@ -1,0 +1,6 @@
+[user]
+    name = Your Work Name
+    email = your.work@company.com
+
+[core]
+    sshCommand = "C:/Users/YourUsername/.ssh/id_work"

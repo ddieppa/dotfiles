@@ -1,5 +1,37 @@
-[alias]
+[init]
+    defaultBranch = main
 
+[core]
+    abbrev = 12
+    attributesfile = ~/.gitattributes
+    autocrlf = input
+    editor = code-insiders --wait
+    excludesfile = ~/.gitignore
+    longpaths = true
+    safecrlf = warn
+    symlinks = false
+
+[includeIf "gitdir/i:D:/work/"]
+    path = ~/.gitconfig-work
+
+[includeIf "gitdir/i:D:/personal/"]
+    path = ~/.gitconfig-personal
+
+[pull]
+    rebase = true
+
+[push]
+    autoSetupRemote = true
+    default = simple
+    followTags = true
+
+[fetch]
+    prune = true
+
+[credential]
+    helper = manager
+
+[alias]
     a   = commit --amend
     br  = branch
     c   = commit
@@ -19,7 +51,7 @@
     w   = instaweb --httpd=webrick              # Start web-based visualizer.
 
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-
+# 
     # Find commits by source code.
 
     cc = "!f() { \
@@ -137,14 +169,6 @@
     changed = yellow reverse
     untracked = red reverse
 
-[core]
-
-    abbrev = 12
-    attributesfile = ~/.gitattributes
-    autocrlf = input
-    editor = vim
-    excludesfile = ~/.gitignore
-
 [diff]
 
     # Show blocks of moved text of at least 20
@@ -170,12 +194,6 @@
     #                     └─ hash (abbreviated)
 
 
-[push]
-
-    # Make `git push` automatically push relevant
-    # annotated tags when pushing branches out.
-
-    followTags = true
 
 [user]
 
