@@ -147,46 +147,24 @@ foreach ($moduleName in $requiredModules.Immediate) {
     try {
         # Special handling for Terminal-Icons which can have XML issues
         if ($moduleName -eq 'Terminal-Icons') {
-            Write-Host "    Importing Terminal-Icons..." -ForegroundColor DarkGray
+            Write-Host "    Checking Terminal-Icons..." -ForegroundColor DarkGray
             $moduleTimer = [System.Diagnostics.Stopwatch]::StartNew()
+
+            # Try to import Terminal-Icons silently
+            $terminalIconsLoaded = $false
             try {
-                Import-Module Terminal-Icons -DisableNameChecking -Force -ErrorAction Stop 2>$null
+                Import-Module Terminal-Icons -DisableNameChecking -Force -ErrorAction Stop -WarningAction SilentlyContinue 2>$null
                 if (Get-Module Terminal-Icons) {
+                    $terminalIconsLoaded = $true
                     Write-Host "    ✓ Terminal-Icons loaded ($($moduleTimer.ElapsedMilliseconds)ms)" -ForegroundColor DarkGreen
-                } else {
-                    throw "Module failed to load properly"
                 }
             } catch {
-                $errorMsg = $_.Exception.Message
-                Write-Host "    ✗ Terminal-Icons failed to load: $errorMsg" -ForegroundColor Red
+                # Terminal-Icons has known XML issues - silently fall back
+            }
 
-                # If it's an XML error, suggest reinstallation
-                if ($errorMsg -like "*XmlNodeType*" -or $errorMsg -like "*XML*" -or $errorMsg -like "*Line*position*") {
-                    Write-Host "    🔧 Detected XML corruption. Attempting to reinstall Terminal-Icons..." -ForegroundColor Yellow
-                    try {
-                        # Uninstall corrupted version
-                        Uninstall-Module -Name Terminal-Icons -AllVersions -Force -ErrorAction SilentlyContinue
-
-                        # Remove from cache
-                        $Global:__ProfileCache.ModuleAvailability.Remove("Module_Terminal-Icons")
-
-                        # Reinstall
-                        Install-Module -Name Terminal-Icons -Scope CurrentUser -Force -AllowClobber -ErrorAction Stop
-
-                        # Try importing again
-                        Import-Module Terminal-Icons -DisableNameChecking -Force -ErrorAction Stop 2>$null
-
-                        if (Get-Module Terminal-Icons) {
-                            Write-Host "    ✓ Terminal-Icons reinstalled and loaded successfully ($($moduleTimer.ElapsedMilliseconds)ms)" -ForegroundColor Green
-                            $moduleTimer.Stop()
-                            continue
-                        }
-                    } catch {
-                        Write-Host "    ✗ Reinstallation failed: $($_.Exception.Message)" -ForegroundColor Red
-                    }
-                }
-
-                Write-Host "    📁 Setting up basic icon fallback..." -ForegroundColor Yellow
+            # If Terminal-Icons failed, set up fallback without noise
+            if (-not $terminalIconsLoaded) {
+                Write-Host "    ℹ Terminal-Icons unavailable, using fallback icons" -ForegroundColor Gray
                 # Create a basic icon fallback function
                 function global:Get-ChildItemPretty {
                     [CmdletBinding()]
@@ -218,7 +196,7 @@ foreach ($moduleName in $requiredModules.Immediate) {
                     }
                 }
                 Set-Alias -Name lsi -Value Get-ChildItemPretty -Scope Global -ErrorAction SilentlyContinue
-                Write-Host "    ✓ Basic icon fallback configured (use 'lsi' for icons)" -ForegroundColor Green
+                Write-Host "    ✓ Fallback icon function ready (use 'lsi' command)" -ForegroundColor DarkGreen
             }
             $moduleTimer.Stop()
         } else {
