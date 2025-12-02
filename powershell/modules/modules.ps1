@@ -157,7 +157,35 @@ foreach ($moduleName in $requiredModules.Immediate) {
                     throw "Module failed to load properly"
                 }
             } catch {
-                Write-Host "    ✗ Terminal-Icons failed to load: $($_.Exception.Message)" -ForegroundColor Red
+                $errorMsg = $_.Exception.Message
+                Write-Host "    ✗ Terminal-Icons failed to load: $errorMsg" -ForegroundColor Red
+
+                # If it's an XML error, suggest reinstallation
+                if ($errorMsg -like "*XmlNodeType*" -or $errorMsg -like "*XML*" -or $errorMsg -like "*Line*position*") {
+                    Write-Host "    🔧 Detected XML corruption. Attempting to reinstall Terminal-Icons..." -ForegroundColor Yellow
+                    try {
+                        # Uninstall corrupted version
+                        Uninstall-Module -Name Terminal-Icons -AllVersions -Force -ErrorAction SilentlyContinue
+
+                        # Remove from cache
+                        $Global:__ProfileCache.ModuleAvailability.Remove("Module_Terminal-Icons")
+
+                        # Reinstall
+                        Install-Module -Name Terminal-Icons -Scope CurrentUser -Force -AllowClobber -ErrorAction Stop
+
+                        # Try importing again
+                        Import-Module Terminal-Icons -DisableNameChecking -Force -ErrorAction Stop 2>$null
+
+                        if (Get-Module Terminal-Icons) {
+                            Write-Host "    ✓ Terminal-Icons reinstalled and loaded successfully ($($moduleTimer.ElapsedMilliseconds)ms)" -ForegroundColor Green
+                            $moduleTimer.Stop()
+                            continue
+                        }
+                    } catch {
+                        Write-Host "    ✗ Reinstallation failed: $($_.Exception.Message)" -ForegroundColor Red
+                    }
+                }
+
                 Write-Host "    📁 Setting up basic icon fallback..." -ForegroundColor Yellow
                 # Create a basic icon fallback function
                 function global:Get-ChildItemPretty {
