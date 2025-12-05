@@ -1,64 +1,55 @@
----
-description: Scans the entire solution to generate a PROJECT_SUMMARY.md with skills, architecture, and resume bullets.
----
+Act as a Principal Software Architect and Technical Writer. 
 
-Act as a Senior .NET Technical Lead and Resume Writer. 
+Your goal is to generate a comprehensive technical documentation file named `PROJECT_SUMMARY.md`. 
 
-Your goal is to analyze the entire solution in this workspace (including all projects found in the .sln or folder structure) and generate a single Markdown file named `PROJECT_SUMMARY.md`.
+You must perform this in two steps:
+1. **Discovery:** Scan the codebase for Solution files (`.sln`) or Root Frontend configurations (`package.json`, `vite.config.ts`).
+2. **Analysis:** For *each* Solution or Root Folder found, generate a "Solution Architecture" section, followed by the detailed "Project Breakdowns".
 
-For EACH project found in the codebase, create a section using the exact structure below. You must infer the functionality, architecture, and skills by reading the `.csproj` files (for NuGet packages/versions), `Startup.cs`/`Program.cs` (for middleware and DI), and the folder structure (to determine patterns like Clean Architecture, Repository Pattern, etc.).
-
-Format each project using this template:
-
-# [Project Name] - Technical Summary
-
-## Project Overview
-[Write a 2-3 sentence executive summary of what this specific project does, its business purpose, and who it serves.]
-
-## Key Technologies & Frameworks
-### Core Technologies
-- [List .NET version, Framework type (Web API, Blazor, Console, Worker), and primary languages]
-
-### Key Libraries & Tools
-- **[Library Name]** - [Brief description of how it is used in *this* code. E.g., "Hangfire - Used for background job processing of loan imports"]
-- [Analyze .csproj references to fill this list. Look for things like AutoMapper, FluentValidation, MediatR, Serilog, Dapper, EF Core, etc.]
-
-### External Integrations & Cloud
-- [List Azure services or 3rd party APIs identified in the code. E.g., Azure Blob Storage, Azure AD, SendGrid, etc.]
-
-## Architecture & Design Patterns
-### Project Structure
-- [Describe the architecture. E.g., Clean Architecture, N-Layer, Microservices]
-- [List specific patterns found. E.g., Repository Pattern, Factory Pattern, CQRS, Mediator Pattern]
-
-### Key Components
-1. **[Component/Folder Name]** - [Description of what this layer does]
-2. **[Component/Folder Name]** - [Description]
-
-## Core Functionality & Features
-[Analyze Controllers, Managers, and Services to list the actual features]
-### 1. [Feature Name, e.g., Data Import]
-- [Detail 1: e.g., Supports CSV and Excel via CsvHelper]
-- [Detail 2: e.g., Validates data using FluentValidation rules]
-
-### 2. [Feature Name, e.g., Reporting]
-- [Detail 1]
-- [Detail 2]
-
-## DevOps & Quality
-- [Analyze if there are Dockerfiles, Azure Pipelines (yaml), or Unit Tests]
-- [List Testing frameworks used (xUnit, NUnit, Moq)]
-
-## Domain Knowledge
-[Based on the variable names and entities (e.g., Loan, Patient, Order), what business domain is this?]
+Use the following strict Markdown structure for your output:
 
 ---
 
-## Suggested Resume Bullet Points
-[Generate 3-5 high-impact, senior-level bullet points for a resume based strictly on this code. Focus on: "Architected...", "Designed...", "Implemented...", "Optimized..."]
-- [Bullet 1]
-- [Bullet 2]
-- [Bullet 3]
+# 🏗️ SOLUTION: [Solution Name / Root Folder Name] 
 
-***
-(Repeat the above structure for the next project in the solution)
+## 1. Executive System Analysis
+[Synthesize the purpose of this entire solution. What business problem does it solve? How do the projects inside interact?]
+
+## 2. System Architecture & Design
+- **Architecture Style:** [e.g., N-Tier Monolith, Microservices, Clean Architecture, Modular Monolith]
+- **Design Patterns (Solution-Level):** [e.g., Dependency Injection (Unity/ServiceCollection), Repository Pattern, Unit of Work, CQRS]
+- **Data Flow:** [Describe how data moves. E.g., Frontend -> Web API -> Business Layer -> Data Layer -> SQL]
+
+## 3. Global Tech Stack
+- **Frameworks:** [Highest common denominator, e.g., .NET Framework 4.8, .NET 8, React 18]
+- **Data Stores:** [SQL Server, Redis, CosmosDB]
+- **Messaging/Async:** [Service Bus, Hangfire, Kafka]
+- **Cross-Cutting Concerns:** [Auth (Identity/OAuth), Logging (Serilog), Resiliency (Polly)]
+
+---
+
+## 📂 DETAILED PROJECT BREAKDOWNS
+
+(Loop through every project contained in this solution and provide the following details for each)
+
+### 🔹 [Project Name] - Technical Summary
+
+**Project Overview**
+[2-3 sentences on what this specific project does within the larger system.]
+
+**Key Technologies**
+- [List specific frameworks/libraries used in this specific project based on .csproj/package.json]
+
+**Architecture & Components**
+- **Layer:** [e.g., Data Access, Presentation, Core Business Logic]
+- **Key Components:** [List Managers, Controllers, or Services found here]
+
+**Domain Knowledge**
+- [Entities and Business Rules handled here. e.g., "Handles Patient Admission logic"]
+
+**Suggested Resume Bullets**
+- [Create 2 senior-level bullets based on the code in this project]
+
+---
+(End of Project Loop)
+(If another .sln is found, repeat the entire structure starting from "SOLUTION: [Name]")
