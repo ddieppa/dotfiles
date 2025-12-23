@@ -4,10 +4,11 @@
 
 .DESCRIPTION
     This script fixes the Terminal-Icons XML corruption error by:
-    1. Uninstalling all versions of Terminal-Icons
-    2. Clearing the PowerShell module cache
-    3. Reinstalling Terminal-Icons from PSGallery
-    4. Verifying the installation
+    1. Checking if the Terminal-Icons module is loaded and unloading it
+    2. Uninstalling all versions of Terminal-Icons
+    3. Clearing the PowerShell module cache
+    4. Reinstalling Terminal-Icons from PSGallery
+    5. Verifying the installation
 
 .EXAMPLE
     .\Fix-TerminalIcons.ps1

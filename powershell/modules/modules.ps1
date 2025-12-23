@@ -163,6 +163,10 @@ foreach ($moduleName in $requiredModules.Immediate) {
                 # If it's an XML error, suggest reinstallation
                 if ($errorMsg -like "*XmlNodeType*" -or $errorMsg -like "*XML*" -or $errorMsg -match "(?i)line.*position") {
                     Write-Host "    🔧 Detected XML corruption. Attempting to reinstall Terminal-Icons..." -ForegroundColor Yellow
+                    
+                    # Stop the timer before reinstallation
+                    $moduleTimer.Stop()
+                    
                     try {
                         # Uninstall corrupted version
                         Uninstall-Module -Name Terminal-Icons -AllVersions -Force -ErrorAction SilentlyContinue
@@ -177,9 +181,10 @@ foreach ($moduleName in $requiredModules.Immediate) {
                         Import-Module Terminal-Icons -DisableNameChecking -Force -ErrorAction Stop 2>$null
 
                         if (Get-Module Terminal-Icons) {
-                            Write-Host "    ✓ Terminal-Icons reinstalled and loaded successfully ($($moduleTimer.ElapsedMilliseconds)ms)" -ForegroundColor Green
-                            $moduleTimer.Stop()
+                            Write-Host "    ✓ Terminal-Icons reinstalled and loaded successfully" -ForegroundColor Green
                             continue
+                        } else {
+                            Write-Host "    ℹ Reinstallation succeeded but module failed to load" -ForegroundColor Yellow
                         }
                     } catch {
                         Write-Host "    ✗ Reinstallation failed: $($_.Exception.Message)" -ForegroundColor Red
