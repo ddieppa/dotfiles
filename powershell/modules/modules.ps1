@@ -161,7 +161,7 @@ foreach ($moduleName in $requiredModules.Immediate) {
                 Write-Host "    ✗ Terminal-Icons failed to load: $errorMsg" -ForegroundColor Red
 
                 # If it's an XML error, suggest reinstallation
-                if ($errorMsg -like "*XmlNodeType*" -or $errorMsg -like "*XML*" -or $errorMsg -like "*Line*position*") {
+                if ($errorMsg -like "*XmlNodeType*" -or $errorMsg -like "*XML*" -or $errorMsg -match "(?i)line.*position") {
                     Write-Host "    🔧 Detected XML corruption. Attempting to reinstall Terminal-Icons..." -ForegroundColor Yellow
                     try {
                         # Uninstall corrupted version
