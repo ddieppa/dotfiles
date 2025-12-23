@@ -8,7 +8,6 @@
       "Bash(git checkout:*)",
       "Bash(git merge:*)",
       "Bash(pwsh -NoProfile -File \"D:\\dotfiles\\powershell\\Fix-TerminalIcons.ps1\")",
-      "Bash(pwsh:*)",
       "Bash(git commit:*)"
     ],
     "deny": []
