@@ -51,6 +51,12 @@ $modulePaths = @(
     "$env:USERPROFILE\Documents\WindowsPowerShell\Modules\Terminal-Icons"
 )
 
+if ($env:OneDrive) {
+    $modulePaths += @(
+        "$env:OneDrive\Documents\PowerShell\Modules\Terminal-Icons",
+        "$env:OneDrive\Documents\WindowsPowerShell\Modules\Terminal-Icons"
+    )
+}
 foreach ($path in $modulePaths) {
     if (Test-Path $path) {
         Write-Host "    Removing $path..." -ForegroundColor Gray
