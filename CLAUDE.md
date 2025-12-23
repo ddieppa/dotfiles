@@ -228,7 +228,7 @@ Theme configuration file location: `powershell/.theme-config`
 - PSReadLine: `powershell/psreadline/bindings.ps1`
 
 ### Performance Optimization
-- Global cache cleared automatically every 30 minutes for entries
+- Global cache entries are automatically cleared after 30 minutes
 - Path tests cached for 5 minutes
 - Command tests cached for 10 minutes
 - Theme configuration cached for 15 minutes
