@@ -2,7 +2,15 @@
   "permissions": {
     "allow": [
       "Bash(powershell:*)",
-      "WebFetch(domain:ohmyposh.dev)"
+      "WebFetch(domain:ohmyposh.dev)",
+      "Bash(pwsh -NoProfile -Command \"& { . ''$PROFILE'' }\")",
+      "Bash(git add:*)",
+      "Bash(git commit -m \"$(cat <<''EOF''\nEnhance PowerShell profile with comprehensive documentation and Terminal-Icons auto-fix\n\n## Updates\n\n### CLAUDE.md - Comprehensive Documentation\n- Added Key Features section highlighting main capabilities\n- Expanded Architecture section with detailed component descriptions and line references\n- Added Performance Monitoring commands (perf, optimize)\n- Enhanced Development Notes with Best Practices, Code Structure Guidelines, and System Requirements\n- Added complete Available Aliases reference for all alias files\n- Added Repository Structure visualization\n- Added comprehensive Troubleshooting section including Terminal-Icons XML error fix\n\n### modules.ps1 - Terminal-Icons Auto-Fix\n- Added automatic detection of XML corruption errors in Terminal-Icons\n- Implemented auto-reinstallation when XML errors are detected\n- Improved error handling with specific error message matching\n- Clears module cache before reinstalling to ensure clean installation\n- Provides graceful fallback to basic icon function if reinstallation fails\n\n### Fix-TerminalIcons.ps1 - New Utility Script\n- Created dedicated Terminal-Icons fix utility script\n- 5-step process: unload, uninstall, cache clear, reinstall, verify\n- Handles both PowerShell and Windows PowerShell module locations\n- Provides detailed progress feedback and verification\n- Offers manual fallback commands if automated fix fails\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n\nCo-Authored-By: Claude <noreply@anthropic.com>\nEOF\n)\")",
+      "Bash(git checkout:*)",
+      "Bash(git merge:*)",
+      "Bash(pwsh -NoProfile -File \"D:\\dotfiles\\powershell\\Fix-TerminalIcons.ps1\")",
+      "Bash(pwsh:*)",
+      "Bash(git commit:*)"
     ],
     "deny": []
   }
