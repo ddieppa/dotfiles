@@ -1,0 +1,1 @@
+git archive HEAD -o ../$(Split-Path -Path ${PWD} -Leaf)-$(Get-Date -UFormat "%Y.%m.%d-%H.%M").zip
