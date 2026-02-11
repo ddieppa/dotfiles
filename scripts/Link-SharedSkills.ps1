@@ -1,12 +1,12 @@
 <#
 .SYNOPSIS
-Creates project-level skills links for AI tooling from a shared dotfiles source.
+Creates project-level links for AI tooling from shared `.agents` content.
 
 .DESCRIPTION
 Interactive by default:
  - Prompts for project root (defaults to current directory)
  - Shows a multi-select checklist of tools
- - Previews planned actions before applying
+ - Previews planned actions before applying (one action per source item per tool)
 
 Non-interactive mode:
  - Requires -NonInteractive -ProjectRoot -Tools
@@ -21,7 +21,8 @@ Non-interactive mode:
 [CmdletBinding()]
 param(
     [string]$ProjectRoot,
-    [string]$SkillsSource = 'D:\dotfiles\.agents\skills',
+    [Alias('SkillsSource')]
+    [string]$AgentsSource = 'D:\dotfiles\.agents',
     [ValidateSet('copilot-cli', 'gemini-cli', 'cursor', 'antigravity', 'windsurf', 'vscode', 'claude', 'codex', 'opencode')]
     [string[]]$Tools,
     [ValidateSet('BackupReplace', 'Skip', 'ForceReplace')]
@@ -42,55 +43,55 @@ function New-ToolCatalog {
         [PSCustomObject]@{
             Key = 'copilot-cli'
             Label = 'GitHub Copilot CLI'
-            RelativeDestination = '.github\skills'
+            RelativeDestination = '.github'
             CommandName = 'copilot'
         }
         [PSCustomObject]@{
             Key = 'gemini-cli'
             Label = 'Gemini CLI'
-            RelativeDestination = '.gemini\skills'
+            RelativeDestination = '.gemini'
             CommandName = 'gemini'
         }
         [PSCustomObject]@{
             Key = 'cursor'
             Label = 'Cursor'
-            RelativeDestination = '.cursor\skills'
+            RelativeDestination = '.cursor'
             CommandName = 'n/a'
         }
         [PSCustomObject]@{
             Key = 'antigravity'
             Label = 'Antigravity'
-            RelativeDestination = '.agent\skills'
+            RelativeDestination = '.agent'
             CommandName = 'n/a'
         }
         [PSCustomObject]@{
             Key = 'windsurf'
             Label = 'Windsurf'
-            RelativeDestination = '.windsurf\skills'
+            RelativeDestination = '.windsurf'
             CommandName = 'n/a'
         }
         [PSCustomObject]@{
             Key = 'vscode'
             Label = 'VS Code'
-            RelativeDestination = '.vscode\skills'
+            RelativeDestination = '.vscode'
             CommandName = 'n/a'
         }
         [PSCustomObject]@{
             Key = 'claude'
             Label = 'Claude Code'
-            RelativeDestination = '.claude\skills'
+            RelativeDestination = '.claude'
             CommandName = 'n/a'
         }
         [PSCustomObject]@{
             Key = 'codex'
             Label = 'OpenAI Codex'
-            RelativeDestination = '.codex\skills'
+            RelativeDestination = '.codex'
             CommandName = 'n/a'
         }
         [PSCustomObject]@{
             Key = 'opencode'
             Label = 'OpenCode'
-            RelativeDestination = '.opencode\skills'
+            RelativeDestination = '.opencode'
             CommandName = 'n/a'
         }
     )
@@ -140,9 +141,9 @@ function Write-Banner {
     )
 
     Clear-Host
-    Write-Host "$($Style.Title)Shared Skills Link Manager$($Style.Reset)"
+    Write-Host "$($Style.Title)Shared Agents Link Manager$($Style.Reset)"
     Write-Host "$($Style.Muted)--------------------------------$($Style.Reset)"
-    Write-Host "$($Style.Muted)Create project-scoped links to centralized AI skills$($Style.Reset)"
+    Write-Host "$($Style.Muted)Create project-scoped links to centralized .agents content$($Style.Reset)"
     Write-Host ''
 }
 
@@ -305,6 +306,7 @@ function New-LinkPath {
     param(
         [Parameter(Mandatory)][string]$DestinationPath,
         [Parameter(Mandatory)][string]$SourcePath,
+        [Parameter(Mandatory)][bool]$SourceIsDirectory,
         [Parameter(Mandatory)]
         [ValidateSet('SymlinkThenJunction', 'SymlinkOnly', 'JunctionOnly')]
         [string]$Strategy
@@ -316,6 +318,9 @@ function New-LinkPath {
     }
 
     if ($Strategy -eq 'JunctionOnly') {
+        if (-not $SourceIsDirectory) {
+            throw "JunctionOnly is not supported for file targets: $SourcePath"
+        }
         New-Item -ItemType Junction -Path $DestinationPath -Target $SourcePath -Force | Out-Null
         return 'Junction'
     }
@@ -329,6 +334,9 @@ function New-LinkPath {
         New-Item -ItemType SymbolicLink -Path $DestinationPath -Target $SourcePath -Force | Out-Null
         return 'SymbolicLink'
     } catch {
+        if (-not $SourceIsDirectory) {
+            throw
+        }
         New-Item -ItemType Junction -Path $DestinationPath -Target $SourcePath -Force | Out-Null
         return 'Junction'
     }
@@ -452,6 +460,7 @@ function BuildPlannedActions {
         [Parameter(Mandatory)][string]$ResolvedSource,
         [Parameter(Mandatory)][string[]]$SelectedTools,
         [Parameter(Mandatory)][array]$ToolCatalog,
+        [Parameter(Mandatory)][array]$SourceEntries,
         [Parameter(Mandatory)][string]$Policy
     )
 
@@ -460,42 +469,30 @@ function BuildPlannedActions {
         $toolByKey[$item.Key] = $item
     }
 
-    $actionsByDestination = @{}
+    $actions = @()
     foreach ($toolKey in $SelectedTools) {
         $tool = $toolByKey[$toolKey]
-        $destPath = Normalize-Path -Path (Join-Path -Path $ResolvedProjectRoot -ChildPath $tool.RelativeDestination)
-        $destKey = $destPath.ToLowerInvariant()
+        $toolRoot = Normalize-Path -Path (Join-Path -Path $ResolvedProjectRoot -ChildPath $tool.RelativeDestination)
+        foreach ($sourceEntry in $SourceEntries) {
+            $sourcePath = Normalize-Path -Path $sourceEntry.FullName
+            $destPath = Normalize-Path -Path (Join-Path -Path $toolRoot -ChildPath $sourceEntry.Name)
+            $state = Get-DestinationState -DestinationPath $destPath -SourcePath $sourcePath
+            $planned = Get-PlannedAction -DestinationState $state -Policy $Policy
 
-        if (-not $actionsByDestination.ContainsKey($destKey)) {
-            $actionsByDestination[$destKey] = [PSCustomObject]@{
+            $actions += [PSCustomObject]@{
+                SelectedAs = $tool.Key
+                ToolLabel = $tool.Label
+                SourceItem = $sourceEntry.Name
+                SourcePath = $sourcePath
+                SourceIsDirectory = [bool]$sourceEntry.PSIsContainer
                 DestinationPath = $destPath
-                EffectiveDestination = $tool.RelativeDestination
-                SourcePath = $ResolvedSource
-                SelectedAs = New-Object System.Collections.Generic.List[string]
-                ToolLabels = New-Object System.Collections.Generic.List[string]
+                EffectiveDestination = ($tool.RelativeDestination + '\' + $sourceEntry.Name)
+                CurrentState = $state.State
+                PlannedAction = $planned
+                CurrentTarget = $state.CurrentTarget
+                LinkType = $state.LinkType
+                Exists = $state.Exists
             }
-        }
-
-        $actionsByDestination[$destKey].SelectedAs.Add($tool.Key)
-        $actionsByDestination[$destKey].ToolLabels.Add($tool.Label)
-    }
-
-    $actions = @()
-    foreach ($entry in $actionsByDestination.Values) {
-        $state = Get-DestinationState -DestinationPath $entry.DestinationPath -SourcePath $entry.SourcePath
-        $planned = Get-PlannedAction -DestinationState $state -Policy $Policy
-
-        $actions += [PSCustomObject]@{
-            DestinationPath = $entry.DestinationPath
-            EffectiveDestination = $entry.EffectiveDestination
-            SourcePath = $entry.SourcePath
-            SelectedAs = @($entry.SelectedAs.ToArray())
-            ToolLabels = @($entry.ToolLabels.ToArray())
-            CurrentState = $state.State
-            PlannedAction = $planned
-            CurrentTarget = $state.CurrentTarget
-            LinkType = $state.LinkType
-            Exists = $state.Exists
         }
     }
 
@@ -514,7 +511,8 @@ function Show-Preview {
     Write-Host ''
 
     $preview = $Actions | Select-Object `
-        @{ Name = 'SelectedAs'; Expression = { $_.SelectedAs -join ', ' } }, `
+        SelectedAs, `
+        SourceItem, `
         EffectiveDestination, `
         CurrentState, `
         PlannedAction, `
@@ -571,7 +569,7 @@ function Invoke-Actions {
                     }
                 }
 
-                $linkKind = New-LinkPath -DestinationPath $action.DestinationPath -SourcePath $action.SourcePath -Strategy $Strategy
+                $linkKind = New-LinkPath -DestinationPath $action.DestinationPath -SourcePath $action.SourcePath -SourceIsDirectory $action.SourceIsDirectory -Strategy $Strategy
                 if ($backupPath) {
                     $status = "BackedUpAndCreated$linkKind"
                 } else {
@@ -584,7 +582,8 @@ function Invoke-Actions {
         }
 
         $results += [PSCustomObject]@{
-            SelectedAs = $action.SelectedAs -join ', '
+            SelectedAs = $action.SelectedAs
+            SourceItem = $action.SourceItem
             EffectiveDestination = $action.EffectiveDestination
             DestinationPath = $action.DestinationPath
             SourcePath = $action.SourcePath
@@ -609,7 +608,7 @@ function Show-Results {
     Write-Host "$($Style.Accent)Execution results$($Style.Reset)"
     Write-Host "$($Style.Muted)-----------------$($Style.Reset)"
 
-    $table = $Results | Select-Object SelectedAs, EffectiveDestination, Status, DestinationPath
+    $table = $Results | Select-Object SelectedAs, SourceItem, EffectiveDestination, Status, DestinationPath
     $table | Format-Table -AutoSize | Out-String | Write-Host
 
     $summary = $Results | Group-Object -Property Status | Sort-Object Name
@@ -624,9 +623,14 @@ $style = Get-Style
 $toolCatalog = New-ToolCatalog
 $toolKeys = @($toolCatalog | ForEach-Object { $_.Key })
 
-$resolvedSource = Normalize-Path -Path $SkillsSource
+$resolvedSource = Normalize-Path -Path $AgentsSource
 if (-not (Test-Path -LiteralPath $resolvedSource -PathType Container)) {
-    throw "Skills source does not exist or is not a directory: $resolvedSource"
+    throw "Agents source does not exist or is not a directory: $resolvedSource"
+}
+
+$sourceEntries = @(Get-ChildItem -LiteralPath $resolvedSource -Force | Sort-Object Name)
+if ($sourceEntries.Count -eq 0) {
+    throw "Agents source is empty. Nothing to link: $resolvedSource"
 }
 
 if ($NonInteractive) {
@@ -678,6 +682,7 @@ $actions = BuildPlannedActions `
     -ResolvedSource $resolvedSource `
     -SelectedTools $selectedTools `
     -ToolCatalog $toolCatalog `
+    -SourceEntries $sourceEntries `
     -Policy $ConflictPolicy
 
 if (-not $NonInteractive) {

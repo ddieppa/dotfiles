@@ -1,6 +1,6 @@
 ---
 name: jira-ticket-reader
-description: Read Jira ticket and create task folder with info + starting prompt. Commands: /read-ticket, /task-info, /import-jira. Triggers: "read ticket", "get ticket info", "document ticket", "fetch jira issue", "import ticket", "load ticket details".
+description: "Read Jira ticket and create task folder with info + starting prompt. Commands: /read-ticket, /task-info, /import-jira. Triggers: read ticket, get ticket info, document ticket, fetch jira issue, import ticket, load ticket details."
 license: MIT
 metadata:
   author: metrc-tech
