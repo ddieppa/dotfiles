@@ -169,7 +169,7 @@ Verify:
 
 Generate Teams message:
 
-`Review PR: [PR-TITLE](pr-link) for this ticket: [TICKET-NUMBER](jira-link)`
+`Review PR: [PR-TITLE](https://github.com/ORG/REPO/pull/123) for this ticket: [TICKET-NUMBER](https://YOUR-DOMAIN.atlassian.net/browse/TICKET-NUMBER)`
 
 ## Output Contract
 
@@ -202,4 +202,3 @@ Report:
 ## References
 
 - [Jira MCP Reference](references/jira-mcp.md) for tool call details, full ADF examples, and troubleshooting.
-

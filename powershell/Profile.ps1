@@ -87,7 +87,7 @@ function oc { opencode @args }
 function cx { codex @args }
 
 # Quick reference for AI tools
-function ai-help {
+function Show-AiHelp {
     Write-Host "AI Tools:" -ForegroundColor Cyan
     Write-Host "  gcp  - GitHub Copilot CLI"
     Write-Host "  cc   - Claude Code"
@@ -95,10 +95,12 @@ function ai-help {
     Write-Host "  oc   - OpenCode"
     Write-Host "  cx   - Codex"
 }
+Set-Alias -Name ai-help -Value Show-AiHelp
 #endregion
 
 #region Utilities
-function reload-profile { . $PROFILE }
+function Update-Profile { . $PROFILE }
+Set-Alias -Name reload-profile -Value Update-Profile
 
 # Profile load time measurement (useful for optimization)
 function measure-profile {
