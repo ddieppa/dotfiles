@@ -22,8 +22,22 @@ if (Get-Command zoxide -ErrorAction SilentlyContinue) {
 #endregion
 
 #region PSReadLine Configuration
-Set-PSReadLineOption -PredictionSource History
-Set-PSReadLineOption -PredictionViewStyle ListView
+$canUsePredictions = $false
+try {
+    $canUsePredictions = (
+        [Environment]::UserInteractive -and
+        -not [Console]::IsInputRedirected -and
+        -not [Console]::IsOutputRedirected -and
+        $Host.UI.SupportsVirtualTerminal
+    )
+} catch {
+    $canUsePredictions = $false
+}
+
+if ($canUsePredictions) {
+    Set-PSReadLineOption -PredictionSource History
+    Set-PSReadLineOption -PredictionViewStyle ListView
+}
 #endregion
 
 #region Deep History Search (fzf)

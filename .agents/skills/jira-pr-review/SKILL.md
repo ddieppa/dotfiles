@@ -11,6 +11,7 @@ description: Move a Jira ticket from "In Development" to "In Review" using pull 
 
 - Handle only the board transition `In Development` -> `In Review`.
 - Do not automate QA/PM/Ready-to-Merge transitions in this skill.
+- Only populate `Resolution Details` when required by transition validation/screen rules or when the user explicitly asks for it.
 
 ## Workflow
 
@@ -42,6 +43,18 @@ Capabilities to execute:
 - Read Jira issue state and field name mapping.
 - Read issue-type field metadata.
 - Read available transitions.
+
+Auth preflight and recovery (required when Atlassian MCP auth fails):
+
+1. Run one lightweight Atlassian capability call first (for example `getAccessibleAtlassianResources`).
+2. If call fails with auth errors (`Auth required`, `Unauthorized`, `401`):
+   - Run `codex mcp list` and inspect the `atlassian` row auth status.
+   - If not authenticated, run `codex mcp login atlassian`.
+   - Retry the Atlassian capability call once.
+3. If auth still fails after successful login:
+   - Treat as session-level stale auth cache.
+   - Stop and instruct user to restart Codex/session and rerun the skill.
+   - Report the `codex mcp list` auth status in the blocker output.
 
 Current MCP examples:
 - `mcp__claude_ai_Atlassian__getAccessibleAtlassianResources`
@@ -88,8 +101,9 @@ Lookup order:
 Rules:
 - Do not use hardcoded custom field IDs.
 - Do not guess fallback field IDs.
+- Never type literal `customfield_<id>` values unless they were resolved dynamically in the same run.
 
-### 6) Prepare and conditionally update Resolution Details from PR commits
+### 6) Prepare and conditionally update Resolution Details from PR commits (only when needed)
 
 Build one bullet per commit subject.
 
@@ -109,10 +123,18 @@ Build one bullet per commit subject.
 ```
 
 Policy:
-- Read the current value from the resolved field key.
-- Treat as empty when value is `null`, missing, an empty string, or an ADF document with no non-whitespace text nodes.
-- If empty: set the resolved field with commit bullets in ADF.
-- If already populated: do not modify it.
+- Determine `resolutionDetailsNeeded` first:
+  - `true` if user explicitly asked to populate Resolution Details.
+  - `true` if Jira transition metadata/screen indicates Resolution Details is required.
+  - otherwise `false`.
+- If `resolutionDetailsNeeded` is `false`: skip Resolution Details update entirely.
+- If `resolutionDetailsNeeded` is `true`:
+  - Read the current value from the dynamically resolved field key.
+  - Treat as empty when value is `null`, missing, an empty string, or an ADF document with no non-whitespace text nodes.
+  - If empty: set the resolved field with commit bullets in ADF.
+  - If already populated: do not modify it.
+
+If Resolution Details cannot be resolved but `resolutionDetailsNeeded` is `false`, continue without blocking the transition.
 
 Dynamic field update pattern:
 
@@ -157,7 +179,7 @@ Report:
 - Jira key
 - Final Jira status
 - Resolved Resolution Details field id/key
-- Resolution Details action: `updated` or `skipped (already populated)`
+- Resolution Details action: `updated`, `skipped (already populated)`, or `skipped (not required)`
 - Teams message text
 
 ### No-op
@@ -166,7 +188,7 @@ Report:
 - Jira key
 - Status already `In Review`
 - Resolved Resolution Details field id/key (if resolved in run)
-- Resolution Details action (if evaluated): `updated` or `skipped (already populated)`
+- Resolution Details action (if evaluated): `updated`, `skipped (already populated)`, or `skipped (not required)`
 - No transition executed
 - Teams message text
 
@@ -174,6 +196,7 @@ Report:
 
 Report:
 - Exact blocker (missing PR, unresolved ticket key, invalid status, missing transition, Resolution Details field name not found, API/auth error)
+- Atlassian MCP auth status check result (from `codex mcp list`) when auth-related failures occur
 - Next action required from user
 
 ## References
