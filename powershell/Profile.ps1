@@ -10,8 +10,20 @@ if (Get-Module -ListAvailable Terminal-Icons) {
     Import-Module -Name Terminal-Icons
 }
 
+# Ensure DOTFILES is set (fallback for new machines / fresh shells)
+if (-not $env:DOTFILES -or -not (Test-Path $env:DOTFILES)) {
+    $env:DOTFILES = "D:\dotfiles"
+}
+
 if (Get-Command oh-my-posh -ErrorAction SilentlyContinue) {
-    oh-my-posh init pwsh --config peru | Invoke-Expression
+    $ompCustomConfig = Join-Path $env:DOTFILES "oh-my-posh\themes\full-stack-dotnet.omp.json"
+
+    if (Test-Path $ompCustomConfig) {
+        oh-my-posh init pwsh --config $ompCustomConfig | Invoke-Expression
+    } else {
+        # Stable fallback when custom config is missing/invalid path.
+        oh-my-posh init pwsh --config peru | Invoke-Expression
+    }
 }
 #endregion
 
