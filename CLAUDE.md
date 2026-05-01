@@ -18,11 +18,12 @@ This is a Windows PowerShell dotfiles repository that provides a comprehensive t
 
 ### Installation and Setup
 ```powershell
-# Initial installation - creates symbolic links and installs dependencies
+# Install/refresh the PowerShell profile stubs at $PROFILE.CurrentUserAllHosts
+# and $PROFILE.CurrentUserCurrentHost. Each stub is a plain .ps1 that
+# dot-sources Profile.ps1 from this repo. Stubs are used instead of symlinks
+# because Windows blocks reparse-point traversal under OneDrive-redirected
+# Documents ("untrusted mount point").
 & D:\dotfiles\powershell\install.ps1
-
-# Change Oh My Posh theme without full reinstallation
-.\install.ps1 -ThemeOnly
 ```
 
 ### Profile Management
@@ -146,9 +147,9 @@ The repository follows a modular architecture centered around `powershell/Profil
    - Prevents redundant module imports
 
 9. **Profile Linking** (`install.ps1`):
-   - Creates symbolic links for both `$PROFILE.CurrentUserAllHosts` and `$PROFILE.CurrentUserCurrentHost`
-   - Ensures profile loads correctly in all PowerShell hosts
-   - Supports `-ThemeOnly` flag for theme-only configuration
+   - Writes plain `.ps1` stub files at `$PROFILE.CurrentUserAllHosts` and `$PROFILE.CurrentUserCurrentHost` that dot-source `powershell/Profile.ps1`
+   - Stubs are intentionally NOT symbolic links: when `$PROFILE` resolves under OneDrive-redirected Documents, Windows refuses to traverse reparse points there ("untrusted mount point"). A plain file sidesteps that check.
+   - Idempotent: an existing reparse point at the target is removed; an existing real file is renamed to `<name>.bak-<timestamp>` before being replaced.
 
 ### Key Implementation Details
 
@@ -220,7 +221,7 @@ Theme configuration file location: `powershell/.theme-config`
 
 ### File Locations
 - Profile source: `powershell/Profile.ps1`
-- Profile symlinks: `$PROFILE.CurrentUserAllHosts` and `$PROFILE.CurrentUserCurrentHost`
+- Profile stubs (plain .ps1 dot-sourcing the repo Profile.ps1): `$PROFILE.CurrentUserAllHosts` and `$PROFILE.CurrentUserCurrentHost`
 - Themes: `powershell/prompt/*.omp.json`
 - Theme config: `powershell/.theme-config`
 - Modules: `powershell/modules/modules.ps1`
@@ -236,7 +237,8 @@ Theme configuration file location: `powershell/.theme-config`
 - Use `Optimize-ProfileCache -MaxAgeMinutes N` to customize cleanup threshold
 
 ### Troubleshooting
-- **Profile doesn't load**: Check if symlinks exist with `Get-Item $PROFILE | Select-Object Target`
+- **Profile doesn't load**: Confirm the stub exists with `Get-Content $PROFILE` (it should dot-source `D:\dotfiles\powershell\Profile.ps1`); re-run `& D:\dotfiles\powershell\install.ps1` if missing.
+- **"Untrusted mount point" error at startup**: A leftover symlink is at `$PROFILE`. Re-run `& D:\dotfiles\powershell\install.ps1` to replace it with a stub file. Full background and verification steps: [powershell/docs/onedrive-untrusted-mount-point.md](powershell/docs/onedrive-untrusted-mount-point.md).
 - **Themes don't work**: Verify Oh My Posh installed with `oh-my-posh --version`
 - **Performance is slow**: Run `perf` to see cache statistics and optimization suggestions
 - **Aliases conflict**: Run `alias-check` to identify conflicts
