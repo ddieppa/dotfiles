@@ -12,7 +12,7 @@ if (Get-Module -ListAvailable Terminal-Icons) {
 
 # Ensure DOTFILES is set (fallback for new machines / fresh shells)
 if (-not $env:DOTFILES -or -not (Test-Path $env:DOTFILES)) {
-    $env:DOTFILES = "D:\dotfiles"
+    $env:DOTFILES = Split-Path -Parent $PSScriptRoot
 }
 
 if (Get-Command oh-my-posh -ErrorAction SilentlyContinue) {

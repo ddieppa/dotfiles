@@ -24,7 +24,7 @@
             "{{ if gt .Ahead 0 }}#16c60c{{ end }}",
             "{{ if gt .Behind 0 }}#f450de{{ end }}"
           ],
-          "options": {
+          "properties": {
             "fetch_status": true,
             "fetch_upstream_icon": true
           },
@@ -39,7 +39,7 @@
       "alignment": "right",
       "segments": [
         {
-          "options": {
+          "properties": {
             "always_enabled": true
           },
           "style": "plain",
@@ -48,7 +48,7 @@
         },
         {
           "foreground": "#bab02a",
-          "options": {
+          "properties": {
             "threshold": 10
           },
           "style": "plain",
@@ -95,7 +95,7 @@
         },
         {
           "foreground": "#00C5C7",
-          "options": {
+          "properties": {
             "time_format": "15:04:05"
           },
           "style": "plain",
@@ -111,7 +111,7 @@
       "segments": [
         {
           "foreground": "#77E4F7",
-          "options": {
+          "properties": {
             "style": "full"
           },
           "style": "plain",
