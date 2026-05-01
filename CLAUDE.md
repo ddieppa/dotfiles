@@ -238,7 +238,7 @@ Theme configuration file location: `powershell/.theme-config`
 
 ### Troubleshooting
 - **Profile doesn't load**: Confirm the stub exists with `Get-Content $PROFILE` (it should dot-source `D:\dotfiles\powershell\Profile.ps1`); re-run `& D:\dotfiles\powershell\install.ps1` if missing.
-- **"Untrusted mount point" error at startup**: A leftover symlink is at `$PROFILE`. Re-run `& D:\dotfiles\powershell\install.ps1` to replace it with a stub file.
+- **"Untrusted mount point" error at startup**: A leftover symlink is at `$PROFILE`. Re-run `& D:\dotfiles\powershell\install.ps1` to replace it with a stub file. Full background and verification steps: [powershell/docs/onedrive-untrusted-mount-point.md](powershell/docs/onedrive-untrusted-mount-point.md).
 - **Themes don't work**: Verify Oh My Posh installed with `oh-my-posh --version`
 - **Performance is slow**: Run `perf` to see cache statistics and optimization suggestions
 - **Aliases conflict**: Run `alias-check` to identify conflicts
